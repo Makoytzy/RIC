@@ -27,6 +27,7 @@ create table if not exists users (
   id         uuid primary key references auth.users (id) on delete cascade,
   email      text unique not null,
   full_name  text not null,
+  position   text not null,
   is_active  boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

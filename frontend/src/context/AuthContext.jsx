@@ -60,8 +60,8 @@ export function AuthProvider({ children }) {
     return result;
   }, []);
 
-  const signUp = useCallback(async ({ email, password, fullName }) => {
-    return authService.signUp({ email, password, fullName });
+  const signUp = useCallback(async ({ email, password, fullName, position }) => {
+    return authService.signUp({ email, password, fullName, position });
   }, []);
 
   const signOut = useCallback(async () => {

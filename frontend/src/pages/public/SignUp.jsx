@@ -5,11 +5,21 @@ import { useAuth } from '../../hooks/useAuth.js';
 import Input from '../../components/common/Input.jsx';
 import Button from '../../components/common/Button.jsx';
 
+const POSITION_OPTIONS = [
+  { value: '', label: 'Select Position' },
+  { value: 'admin', label: 'Admin' },
+  { value: 'manager', label: 'Manager' },
+  { value: 'operational_staff', label: 'Operational Staff' },
+  { value: 'warehouse_staff', label: 'Warehouse Staff' },
+  { value: 'sales_staff', label: 'Sales Staff' },
+];
+
 export default function SignUp() {
   const { signUp } = useAuth();
   const navigate = useNavigate();
   const emailRef = useRef(null);
-  const [form, setForm] = useState({ fullName: '', email: '', password: '' });
+  const [form, setForm] = useState({ fullName: '', email: '', password: '', confirmPassword: '', position: '' });
+  const [errors, setErrors] = useState({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -17,10 +27,24 @@ export default function SignUp() {
     emailRef.current?.focus();
   }, []);
 
+  const validate = () => {
+    const nextErrors = {};
+    if (!form.fullName.trim()) nextErrors.fullName = 'Full name is required';
+    if (!form.email.trim()) nextErrors.email = 'Email address is required';
+    if (!form.password || form.password.length < 8) nextErrors.password = 'Password must be at least 8 characters';
+    if (form.password !== form.confirmPassword) nextErrors.confirmPassword = 'Passwords must match';
+    if (!form.position) nextErrors.position = 'Select your position';
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    setErrors({});
+    if (!validate()) return;
     setLoading(true);
+
     try {
       await signUp(form);
       navigate('/login', { state: { justRegistered: true } });
@@ -50,6 +74,7 @@ export default function SignUp() {
             required
             value={form.fullName}
             onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+            error={errors.fullName}
           />
           <Input
             id="email"
@@ -61,6 +86,7 @@ export default function SignUp() {
             value={form.email}
             autoComplete="email"
             onChange={(e) => setForm({ ...form, email: e.target.value })}
+            error={errors.email}
           />
           <Input
             id="password"
@@ -72,7 +98,37 @@ export default function SignUp() {
             value={form.password}
             autoComplete="new-password"
             onChange={(e) => setForm({ ...form, password: e.target.value })}
+            error={errors.password}
           />
+          <Input
+            id="confirmPassword"
+            label="Confirm Password"
+            type="password"
+            icon={Lock}
+            required
+            value={form.confirmPassword}
+            autoComplete="new-password"
+            onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+            error={errors.confirmPassword}
+          />
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="position" className="text-sm font-medium text-slate-700">
+              Position
+            </label>
+            <select
+              id="position"
+              value={form.position}
+              onChange={(e) => setForm({ ...form, position: e.target.value })}
+              className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+            >
+              {POSITION_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value} disabled={!option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {errors.position && <span className="text-xs text-red-600">{errors.position}</span>}
+          </div>
           {error && <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
           <Button
             type="submit"

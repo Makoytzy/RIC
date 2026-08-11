@@ -3,12 +3,12 @@ import { AppError } from '../middleware/errorMiddleware.js';
 
 const DEFAULT_ROLE = 'operational_staff';
 
-export async function signUp({ email, password, fullName }) {
+export async function signUp({ email, password, fullName, position }) {
   const { data, error } = await supabaseAdmin.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
-    user_metadata: { full_name: fullName },
+    user_metadata: { full_name: fullName, position },
   });
 
   if (error) {
@@ -25,10 +25,11 @@ export async function signUp({ email, password, fullName }) {
   // If anything below fails, delete the auth user we just created so the
   // email isn't left in a permanent "orphaned, can never sign up" state.
   try {
-    // Create profile row
+    // Create or update the profile row. If a row already exists for this user ID,
+    // upsert will avoid a duplicate primary key error and keep the profile in sync.
     const { error: profileError } = await supabaseAdmin
       .from('users')
-      .insert({ id: userId, email, full_name: fullName });
+      .upsert({ id: userId, email, full_name: fullName, position }, { onConflict: 'id' });
     if (profileError) throw new AppError(profileError.message, 400);
 
     // Assign default role

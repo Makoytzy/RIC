@@ -4,9 +4,9 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function signUp(req, res, next) {
   try {
-    const { email, password, fullName } = req.body;
-    if (!email || !password || !fullName) {
-      return res.status(400).json({ error: 'email, password and fullName are required' });
+    const { email, password, fullName, position } = req.body;
+    if (!email || !password || !fullName || !position) {
+      return res.status(400).json({ error: 'email, password, fullName and position are required' });
     }
     if (!EMAIL_RE.test(email)) {
       return res.status(400).json({ error: 'Please enter a valid email address' });
@@ -17,7 +17,15 @@ export async function signUp(req, res, next) {
     if (typeof fullName !== 'string' || !fullName.trim()) {
       return res.status(400).json({ error: 'Full name is required' });
     }
-    const user = await authService.signUp({ email: email.trim().toLowerCase(), password, fullName: fullName.trim() });
+    if (typeof position !== 'string' || !position.trim()) {
+      return res.status(400).json({ error: 'Position is required' });
+    }
+    const user = await authService.signUp({
+      email: email.trim().toLowerCase(),
+      password,
+      fullName: fullName.trim(),
+      position: position.trim(),
+    });
     return res.status(201).json({ user });
   } catch (err) {
     return next(err);
