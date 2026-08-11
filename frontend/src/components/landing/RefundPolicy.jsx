@@ -1,4 +1,4 @@
-import Modal from './common/Modal.jsx';
+import Modal from '../common/Modal.jsx';
 
 export default function RefundPolicy({ isOpen, onClose }) {
   return (

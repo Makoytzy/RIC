@@ -1,4 +1,4 @@
-import Modal from './common/Modal.jsx';
+import Modal from '../common/Modal.jsx';
 
 export default function ShippingPolicy({ isOpen, onClose }) {
   return (

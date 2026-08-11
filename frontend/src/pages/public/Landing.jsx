@@ -8,14 +8,14 @@ import {
   useTransform,
   useMotionValue
 } from 'framer-motion';
-import GifScrollHero from '../../components/GifScrollHero.jsx';
-import AuthModal from '../../components/AuthModal.jsx';
-import FeaturedProducts from '../../components/FeaturedProducts.jsx';
-import ContactSection from '../../components/ContactSection.jsx';
-import ProductImage from '../../components/ProductImage.jsx';
-import RefundPolicy from '../../components/RefundPolicy.jsx';
-import TermsOfService from '../../components/TermsOfService.jsx';
-import ShippingPolicy from '../../components/ShippingPolicy.jsx';
+import GifScrollHero from '../../components/landing/GifScrollHero.jsx';
+import AuthModal from '../../components/landing/AuthModal.jsx';
+import FeaturedProducts from '../../components/landing/FeaturedProducts.jsx';
+import ContactSection from '../../components/landing/ContactSection.jsx';
+import ProductImage from '../../components/landing/ProductImage.jsx';
+import RefundPolicy from '../../components/landing/RefundPolicy.jsx';
+import TermsOfService from '../../components/landing/TermsOfService.jsx';
+import ShippingPolicy from '../../components/landing/ShippingPolicy.jsx';
 import { NEW_ARRIVALS, formatPeso } from '../../data/newArrivals.js';
 import {
   LogIn,

@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { X, LogIn, Users } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth.js';
-import Input from './common/Input.jsx';
-import Button from './common/Button.jsx';
+import { useAuth } from '../../hooks/useAuth.js';
+import Input from '../common/Input.jsx';
+import Button from '../common/Button.jsx';
 
 const modalVariants = {
   hidden: { opacity: 0, scale: 0.96, y: -12 },
