@@ -88,3 +88,4 @@ Add a migration file per module (e.g. `002_inventory_schema.sql`), a
 service/controller/route trio in the backend, and a page/service pair in the
 frontend, then register the route in `app.js` and the nav item in
 `permissions.js`.
+"# RedIndianCustoms" 
