@@ -3,6 +3,7 @@ import ProtectedRoute from './ProtectedRoute.jsx';
 import RoleRoute from './RoleRoute.jsx';
 import DashboardLayout from '../components/layout/DashboardLayout.jsx';
 
+import Landing from '../pages/public/Landing.jsx';
 import Login from '../pages/public/Login.jsx';
 import SignUp from '../pages/public/SignUp.jsx';
 import Dashboard from '../pages/dashboard/Dashboard.jsx';
@@ -55,6 +56,7 @@ import { ROLES } from '../utils/permissions.js';
 export default function AppRoutes() {
   return (
     <Routes>
+      <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignUp />} />
 
@@ -136,8 +138,7 @@ export default function AppRoutes() {
         </Route>
       </Route>
 
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
