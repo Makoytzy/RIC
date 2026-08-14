@@ -17,6 +17,7 @@ import {
 import { useAuth } from '../../hooks/useAuth.js';
 import Input from '../common/Input.jsx';
 import Button from '../common/Button.jsx';
+import Toast from '../common/Toast.jsx';
 
 const modalVariants = {
   hidden: {
@@ -64,7 +65,12 @@ export default function AuthModal({
   // ============================================================
 
   const [errors, setErrors] = useState({});
-  const [status, setStatus] = useState('');
+  const [toast, setToast] = useState({
+    visible: false,
+    type: 'info',
+    title: '',
+    message: ''
+  });
   const [loading, setLoading] = useState(false);
   const [verifyingCode, setVerifyingCode] = useState(false);
 
@@ -74,6 +80,26 @@ export default function AuthModal({
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] =
     useState(false);
+
+  // ============================================================
+  // TOAST HELPER FUNCTION
+  // ============================================================
+
+  const showToast = (type, message, title = '') => {
+    setToast({
+      visible: true,
+      type,
+      title,
+      message
+    });
+  };
+
+  const hideToast = () => {
+    setToast((prev) => ({
+      ...prev,
+      visible: false
+    }));
+  };
 
   // ============================================================
   // RESET FORM WHEN MODE CHANGES
@@ -89,7 +115,7 @@ export default function AuthModal({
     });
 
     setErrors({});
-    setStatus('');
+    hideToast();
 
     setLoading(false);
     setVerifyingCode(false);
@@ -127,8 +153,8 @@ export default function AuthModal({
     });
 
     // Clear status when user starts editing
-    if (status) {
-      setStatus('');
+    if (toast.visible) {
+      hideToast();
     }
   };
 
@@ -153,7 +179,7 @@ export default function AuthModal({
     }
 
     setErrors({});
-    setStatus('');
+    hideToast();
     setEmployeeInfo(null);
     setEmployeeVerified(false);
 
@@ -203,8 +229,10 @@ export default function AuthModal({
           employee.email || ''
       }));
 
-      setStatus(
-        'Employee code verified successfully.'
+      showToast(
+        'success',
+        'Employee code verified successfully!',
+        'Employee Code Verified'
       );
 
     } catch (error) {
@@ -327,13 +355,18 @@ export default function AuthModal({
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    setStatus('');
+    hideToast();
 
     // ----------------------------------------------------------
     // VALIDATE
     // ----------------------------------------------------------
 
     if (!validate()) {
+      showToast(
+        'error',
+        'Please fix the errors in the form before submitting.',
+        'Validation Error'
+      );
       return;
     }
 
@@ -352,8 +385,10 @@ export default function AuthModal({
           password: form.password
         });
 
-        setStatus(
-          'Login successful.'
+        showToast(
+          'success',
+          'You have successfully logged in. Redirecting to dashboard...',
+          'Login Successful'
         );
 
         onClose();
@@ -383,8 +418,10 @@ export default function AuthModal({
       // SUCCESS
       // --------------------------------------------------------
 
-      setStatus(
-        'Account created successfully. Please verify your email and sign in.'
+      showToast(
+        'success',
+        'Account created successfully! Please verify your email to sign in.',
+        'Account Created'
       );
 
       // --------------------------------------------------------
@@ -407,8 +444,9 @@ export default function AuthModal({
       // --------------------------------------------------------
 
       setTimeout(() => {
+        hideToast();
         onSwitchMode('login');
-      }, 1500);
+      }, 3000);
 
     } catch (error) {
       console.error(
@@ -416,9 +454,10 @@ export default function AuthModal({
         error
       );
 
-      setStatus(
-        error?.message ||
-        'Something went wrong. Please try again.'
+      showToast(
+        'error',
+        error?.message || 'Something went wrong. Please try again.',
+        'Authentication Error'
       );
 
     } finally {
@@ -431,8 +470,24 @@ export default function AuthModal({
   // ============================================================
 
   return (
-    <AnimatePresence>
-      {mode && (
+    <>
+      {/* ====================================================
+          TOAST NOTIFICATION - POSITIONED OUTSIDE MODAL
+      ==================================================== */}
+      
+      <Toast
+        type={toast.type}
+        title={toast.title}
+        message={toast.message}
+        visible={toast.visible}
+        onClose={hideToast}
+        duration={5000}
+        pauseOnHover={true}
+        position="top-right"
+      />
+
+      <AnimatePresence>
+        {mode && (
 
         <motion.div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-4 backdrop-blur-xl overflow-y-auto"
@@ -607,36 +662,40 @@ export default function AuthModal({
                     {employeeVerified &&
                       employeeInfo && (
 
-                        <div className="mt-0.5 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-2.5 py-1.5">
+                        <div className="mt-0.5 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-2">
 
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 mb-1.5">
 
                             <CheckCircle2
-                              size={12}
+                              size={14}
                               className="text-emerald-400"
                             />
 
-                            <p className="text-[10px] font-semibold text-emerald-300">
+                            <p className="text-xs font-semibold text-emerald-300">
                               Employee Verified
                             </p>
 
                           </div>
 
-                          <div className="mt-1 space-y-0">
+                          <div className="space-y-1">
 
-                            <p className="text-[10px] text-slate-300">
-
-                              Employee:{' '}
-
-                              <span className="font-medium text-white">
+                            <div className="flex items-baseline gap-1.5">
+                              <span className="text-[10px] text-emerald-200/70 font-medium">
+                                Employee:
+                              </span>
+                              <span className="text-xs font-semibold text-white">
                                 {employeeInfo.full_name}
                               </span>
-                              {' • '}
-                              <span className="font-medium text-white">
+                            </div>
+
+                            <div className="flex items-baseline gap-1.5">
+                              <span className="text-[10px] text-emerald-200/70 font-medium">
+                                Position:
+                              </span>
+                              <span className="text-xs font-semibold text-white">
                                 {employeeInfo.position}
                               </span>
-
-                            </p>
+                            </div>
 
                           </div>
 
@@ -663,6 +722,11 @@ export default function AuthModal({
                     disabled={
                       employeeVerified
                     }
+                    className={
+                      employeeVerified
+                        ? '!text-slate-500'
+                        : ''
+                    }
                     onChange={(e) =>
                       handleChange(
                         'fullName',
@@ -687,10 +751,6 @@ export default function AuthModal({
                   icon={Mail}
                   placeholder="you@example.com"
                   value={form.email}
-                  disabled={
-                    mode === 'signup' &&
-                    employeeVerified
-                  }
                   onChange={(e) =>
                     handleChange(
                       'email',
@@ -811,29 +871,8 @@ export default function AuthModal({
                 )}
 
                 {/* ==================================================
-                    STATUS MESSAGE
+                    STATUS MESSAGE - REMOVED (NOW USING TOAST)
                 =================================================== */}
-
-                {status && (
-
-                  <div
-                    className={`rounded-3xl px-3 py-2 text-xs ${
-                      status
-                        .toLowerCase()
-                        .includes('success') ||
-                      status
-                        .toLowerCase()
-                        .includes('verified')
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : 'bg-rose-50 text-rose-700'
-                    }`}
-                  >
-
-                    {status}
-
-                  </div>
-
-                )}
 
                 {/* ==================================================
                     SUBMIT BUTTON
@@ -956,5 +995,6 @@ export default function AuthModal({
       )}
 
     </AnimatePresence>
+    </>
   );
 }

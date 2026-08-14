@@ -1,504 +1,474 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import {
-  motion,
-  AnimatePresence,
-  useScroll,
-  useMotionValueEvent,
-  useTransform,
-  useMotionValue
-} from 'framer-motion';
-import GifScrollHero from '../../components/landing/GifScrollHero.jsx';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import AuthModal from '../../components/landing/AuthModal.jsx';
-import FeaturedProducts from '../../components/landing/FeaturedProducts.jsx';
-import ContactSection from '../../components/landing/ContactSection.jsx';
-import ProductImage from '../../components/landing/ProductImage.jsx';
-import RefundPolicy from '../../components/landing/RefundPolicy.jsx';
-import TermsOfService from '../../components/landing/TermsOfService.jsx';
-import ShippingPolicy from '../../components/landing/ShippingPolicy.jsx';
-import { NEW_ARRIVALS, formatPeso } from '../../data/newArrivals.js';
+import logo from '../../Image/logo.jpg';
 import {
   LogIn,
-  Wrench,
-  ShieldCheck,
-  Compass,
-  Star,
-  ArrowRight,
-  Award,
-  Sparkles,
-  ChevronRight,
+  LayoutDashboard,
+  Package,
+  Warehouse,
+  BarChart3,
+  Users,
+  Shield,
   Zap,
-  Timer,
-  Gauge,
-  Cog,
-  Phone,
-  Mail,
-  MapPin,
-  Bike,
-  Instagram,
-  Facebook,
-  Youtube,
+  CheckCircle,
+  ArrowRight,
   Menu,
   X,
-  ChevronDown,
-  Users
+  FileCheck,
+  ClipboardCheck,
+  TrendingUp,
 } from 'lucide-react';
 
-const REVEAL_EASE = [0.22, 1, 0.36, 1];
-
-const revealGroup = {
-  hidden: {},
-  visible: { transition: { delayChildren: 0.08, staggerChildren: 0.12 } }
+const fadeInUp = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
 };
 
-const revealItem = {
-  hidden: { opacity: 0, y: 28, filter: 'blur(8px)' },
+const staggerContainer = {
+  hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    y: 0,
-    filter: 'blur(0px)',
-    transition: { duration: 0.8, ease: REVEAL_EASE }
-  }
+    transition: { staggerChildren: 0.15 },
+  },
 };
-
-const revealOnScroll = {
-  variants: revealGroup,
-  initial: 'hidden',
-  whileInView: 'visible',
-  viewport: { once: true, amount: 0.2 }
-};
-
-const NAV_SECTIONS = ['products', 'featured', 'about', 'contact'];
 
 export default function Landing() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [headerSolid, setHeaderSolid] = useState(false);
   const [authMode, setAuthMode] = useState(null);
-  const [refundPolicyOpen, setRefundPolicyOpen] = useState(false);
-  const [termsOfServiceOpen, setTermsOfServiceOpen] = useState(false);
-  const [shippingPolicyOpen, setShippingPolicyOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState('products');
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const containerRef = useRef(null);
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    const sections = NAV_SECTIONS
-      .map((id) => document.getElementById(id))
-      .filter(Boolean);
-    if (!sections.length) return;
+  const features = [
+    {
+      icon: Package,
+      title: 'Inventory Management',
+      description: 'Track stock levels, locations, and movements in real-time with advanced batch and serial number tracking.',
+    },
+    {
+      icon: Warehouse,
+      title: 'Warehouse Operations',
+      description: 'Streamline receiving, inspection, picking, packing, and shipping operations with barcode scanning.',
+    },
+    {
+      icon: BarChart3,
+      title: 'Reports & Analytics',
+      description: 'Generate comprehensive reports on inventory, discrepancies, defects, and operational efficiency.',
+    },
+    {
+      icon: FileCheck,
+      title: 'Quality Control',
+      description: 'Manage inspections, create defect reports, and track quality metrics throughout your operations.',
+    },
+    {
+      icon: ClipboardCheck,
+      title: 'Order Fulfillment',
+      description: 'Process orders efficiently with integrated picking, packing, and multi-marketplace support.',
+    },
+    {
+      icon: Users,
+      title: 'Role-Based Access',
+      description: 'Secure system with granular permissions for Admin, Manager, Operational, Warehouse, and Sales staff.',
+    },
+  ];
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const inView = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (inView) setActiveSection(inView.target.id);
-      },
-      { rootMargin: '-45% 0px -45% 0px', threshold: 0 }
-    );
-
-    sections.forEach((section) => observer.observe(section));
-    return () => observer.disconnect();
-  }, []);
-
-  const openAuth = (mode) => {
-    setMobileMenuOpen(false);
-    setAuthMode(mode);
-  };
-
-  const { scrollY } = useScroll();
-
-  useMotionValueEvent(scrollY, 'change', (y) => {
-    setHeaderSolid(y > 50);
-  });
-
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      const x = (e.clientX / window.innerWidth - 0.5) * 20;
-      const y = (e.clientY / window.innerHeight - 0.5) * 20;
-      mouseX.set(x);
-      mouseY.set(y);
-      setMousePosition({ x, y });
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, [mouseX, mouseY]);
-
-  const handleProductInquire = () => {
-    openAuth('signup');
-  };
-
-  const handleNavClick = (e, href, target) => {
-    e.preventDefault();
-    const targetId = target || href.slice(1);
-    const element = document.getElementById(targetId);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-      setMobileMenuOpen(false);
-    }
-  };
-
-  const featuredArrivals = NEW_ARRIVALS.slice(0, 4);
+  const benefits = [
+    'Real-time inventory visibility',
+    'Automated stock level alerts',
+    'Multi-location warehouse support',
+    'Batch and serial number tracking',
+    'Barcode generation and scanning',
+    'Discrepancy and defect tracking',
+    'Marketplace integration (Shopee, TikTok, Lazada)',
+    'Comprehensive audit trails',
+  ];
 
   return (
-    <div className="min-h-screen bg-[#090A0F] text-[#F3F4F6] relative overflow-x-hidden font-sans selection:bg-[#E52E2E] selection:text-white" ref={containerRef}>
-      <motion.div 
-        className="fixed inset-0 bg-[radial-gradient(circle_at_30%_10%,rgba(229,46,46,0.08),transparent_45%)] pointer-events-none z-0"
-        style={{
-          x: useTransform(mouseX, [-10, 10], [-5, 5]),
-          y: useTransform(mouseY, [-10, 10], [-5, 5])
-        }}
-      />
-      <motion.div 
-        className="fixed inset-0 bg-[radial-gradient(circle_at_80%_80%,rgba(245,158,11,0.04),transparent_50%)] pointer-events-none z-0"
-        style={{
-          x: useTransform(mouseX, [-10, 10], [5, -5]),
-          y: useTransform(mouseY, [-10, 10], [5, -5])
-        }}
-      />
-
-      <motion.header 
-        className={`fixed top-0 left-0 right-0 z-40 px-5 lg:px-10 py-3 flex items-center justify-between transition-all duration-500 ${
-          headerSolid 
-            ? 'backdrop-blur-2xl bg-[#090A0F]/95 border-b border-white/8 shadow-2xl shadow-black/50' 
-            : 'backdrop-blur-md bg-transparent border-b border-transparent'
-        }`}
-        initial={{ y: -80 }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.6, ease: 'easeOut' }}
-      >
-        <Link to="/" className="flex items-center gap-3 group">
-          <div className="relative w-11 h-11 rounded-xl overflow-hidden border border-white/10 shadow-lg shadow-red-950/60 bg-[#0b0d14]">
-            <div className="flex h-full w-full items-center justify-center text-xs uppercase tracking-[0.3em] text-white/60">RIC</div>
-          </div>
-          <div>
-            <div className="text-sm font-black uppercase tracking-[0.2em] leading-tight">
-              <span className="text-[#ff0000]">Red</span> Indian <span className="text-[#2563eb]">Customs</span>
-            </div>
-            <div className="text-[9px] text-[#F59E0B] font-mono uppercase tracking-[0.3em] opacity-80">
-              Est. 2014 • Custom Garage
-            </div>
-          </div>
-        </Link>
-
-        <nav className="hidden lg:flex items-center gap-1">
-          {[
-            { href: '#products', label: 'Products', icon: Sparkles, target: 'featured', activeSections: ['products', 'featured'] },
-            { href: '#about', label: 'About', icon: Users },
-            { href: '#contact', label: 'Contact', icon: Phone }
-          ].map((item) => {
-            const isActive = item.activeSections ? item.activeSections.includes(activeSection) : activeSection === item.href.slice(1);
-            return (
-              <motion.a
-                key={item.label}
-                href={item.href}
-                onClick={(e) => handleNavClick(e, item.href, item.target)}
-                whileTap={{ scale: 0.94 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                className={`relative flex items-center gap-1.5 px-4 py-2 rounded-lg text-[11px] font-mono tracking-wider transition-colors duration-200 group ${
-                  isActive
-                    ? 'text-[#E52E2E]'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                {isActive && (
-                  <motion.span
-                    layoutId="nav-active-pill"
-                    className="absolute inset-0 rounded-lg bg-[#E52E2E]/15 border border-[#E52E2E]/20"
-                    transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-                  />
-                )}
-                <item.icon size={12} className="relative z-10" />
-                <span className="relative z-10 group-hover:after:content-[''] group-hover:after:absolute group-hover:after:bottom-0 group-hover:after:left-0 group-hover:after:w-full group-hover:after:h-[2px] group-hover:after:bg-[#E52E2E] group-hover:after:transition-all group-hover:after:duration-300">{item.label}</span>
-              </motion.a>
-            );
-          })}
-        </nav>
-
-        <div className="hidden md:flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => openAuth('login')}
-            className="relative group bg-gradient-to-r from-[#E52E2E] to-[#CC2424] hover:from-[#FF3B3B] hover:to-[#E52E2E] text-white px-5 py-2.5 rounded-xl text-[11px] font-mono font-extrabold tracking-wider shadow-lg shadow-red-950/50 transition-all hover:scale-[1.03] hover:-translate-y-0.5 active:scale-95 active:translate-y-0 overflow-hidden"
-          >
-            <span className="relative z-10 flex items-center gap-2">
-              <LogIn size={13} />
-              Get Started
-            </span>
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-          </button>
-        </div>
-
-        <button 
-          className="md:hidden w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-300 hover:text-white transition-colors"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        >
-          {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
-      </motion.header>
-
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed inset-x-0 top-[60px] z-30 bg-[#0D0F16]/98 backdrop-blur-2xl border-b border-white/10 p-6 flex flex-col gap-4 md:hidden shadow-2xl"
-          >
-            {[
-              { href: '#products', label: 'Products', target: 'featured' },
-              { href: '#about', label: 'About' },
-              { href: '#contact', label: 'Contact' }
-            ].map((item) => (
-              <a 
-                key={item.href}
-                href={item.href}
-                onClick={(e) => {
-                  handleNavClick(e, item.href, item.target);
-                  setMobileMenuOpen(false);
-                }}
-                className="text-sm font-mono uppercase tracking-wider text-gray-300 hover:text-[#E52E2E] transition-colors py-2 border-b border-white/5"
-              >
-                {item.label}
-              </a>
-            ))}
-            <div className="flex gap-3 mt-2">
-              <button type="button" className="flex-1 text-center py-3 rounded-xl bg-white/5 border border-white/10 text-white font-mono text-sm font-bold" onClick={() => openAuth('login')}>
-                SIGN IN
-              </button>
-              <button type="button" className="flex-1 text-center py-3 rounded-xl bg-[#E52E2E] text-white font-mono text-sm font-bold shadow-lg" onClick={() => openAuth('signup')}>
-                REGISTER
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <GifScrollHero forceComplete={false} />
-
-      <section id="products" className="relative z-20 bg-[#0B0D14] border-t border-white/5">
-        <div className="max-w-7xl mx-auto px-6 lg:px-12 py-16">
-          <motion.div
-            className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 mb-12"
-            {...revealOnScroll}
-          >
-            <motion.div variants={revealItem}>
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-mono text-[#F59E0B] uppercase tracking-[0.3em] mb-4">
-                <Sparkles size={13} />
-                NEW ARRIVALS
+    <div className="min-h-screen bg-white">
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-white border-b border-slate-200">
+        <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <Link to="/" className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200">
+                <img src={logo} alt="Logo" className="w-full h-full object-cover" />
               </div>
-              <h2 className="font-sans text-4xl sm:text-5xl font-extrabold text-white mb-4" style={{ textShadow: '0 0 30px rgba(59, 130, 246, 0.5), 0 0 60px rgba(59, 130, 246, 0.3)' }}>
-                Fresh parts for your next custom build.
-              </h2>
-              <p className="max-w-2xl text-sm sm:text-base text-white/60 leading-relaxed">
-                Rediscover classic motorcycle styling with hand-picked components designed for riders who love authenticity.
-              </p>
-            </motion.div>
-            <motion.div variants={revealItem} className="shrink-0">
-              <Link
-                to="/new-arrival"
-                className="group relative inline-flex items-center gap-2.5 overflow-hidden rounded-full bg-gradient-to-r from-[#3B82F6] to-[#2563EB] px-7 py-3.5 text-sm font-bold text-white shadow-xl shadow-blue-950/40 transition-all hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-blue-900/50 active:translate-y-0 active:scale-95"
+              <div>
+                <h1 className="text-sm font-bold text-slate-900">Inventory Management</h1>
+                <p className="text-xs text-slate-500">Warehouse Operations</p>
+              </div>
+            </Link>
+
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center gap-8">
+              <a href="#features" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
+                Features
+              </a>
+              <a href="#benefits" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
+                Benefits
+              </a>
+              <a href="#contact" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
+                Contact
+              </a>
+            </div>
+
+            {/* CTA Button */}
+            <div className="hidden md:flex items-center gap-3">
+              <button
+                onClick={() => setAuthMode('login')}
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
               >
-                <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-                <span className="relative z-10">View All</span>
-                <span className="relative z-10 flex h-6 w-6 items-center justify-center rounded-full bg-white/20 transition-transform duration-300 group-hover:translate-x-0.5">
-                  <ArrowRight size={13} />
-                </span>
-                <span className="relative z-10 rounded-full bg-white/15 px-2 py-0.5 font-mono text-[10px] tracking-wider">
-                  {NEW_ARRIVALS.length}
-                </span>
-              </Link>
+                <LogIn size={16} />
+                Get Started
+              </button>
+            </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors"
+            >
+              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          </div>
+
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="md:hidden py-4 border-t border-slate-200"
+            >
+              <div className="flex flex-col gap-3">
+                <a
+                  href="#features"
+                  className="px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Features
+                </a>
+                <a
+                  href="#benefits"
+                  className="px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Benefits
+                </a>
+                <a
+                  href="#contact"
+                  className="px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Contact
+                </a>
+                <button
+                  onClick={() => {
+                    setAuthMode('login');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                  <LogIn size={16} />
+                  Get Started
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </nav>
+      </header>
+
+      {/* Hero Section */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-slate-50 to-blue-50 py-20 lg:py-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={staggerContainer}
+            className="grid lg:grid-cols-2 gap-12 items-center"
+          >
+            {/* Left Column */}
+            <motion.div variants={fadeInUp}>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium mb-6">
+                <Zap size={14} />
+                Enterprise Warehouse Management
+              </div>
+
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 mb-6 leading-tight">
+                Streamline Your Inventory Operations
+              </h1>
+
+              <p className="text-lg text-slate-600 mb-8 leading-relaxed">
+                Comprehensive inventory management system designed for modern warehouses. Track inventory, manage
+                orders, and optimize operations with real-time visibility and powerful reporting.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-4">
+                <button
+                  onClick={() => setAuthMode('signup')}
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20"
+                >
+                  Get Started
+                  <ArrowRight size={18} />
+                </button>
+                <button
+                  onClick={() => setAuthMode('login')}
+                  className="px-6 py-3 bg-white hover:bg-slate-50 text-slate-900 font-medium rounded-lg border border-slate-200 transition-colors flex items-center justify-center gap-2"
+                >
+                  <LogIn size={18} />
+                  Sign In
+                </button>
+              </div>
+            </motion.div>
+
+            {/* Right Column - Stats Cards */}
+            <motion.div variants={fadeInUp} className="grid grid-cols-2 gap-4">
+              <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+                <LayoutDashboard size={32} className="text-blue-600 mb-3" />
+                <p className="text-2xl font-bold text-slate-900 mb-1">Real-Time</p>
+                <p className="text-sm text-slate-600">Inventory Tracking</p>
+              </div>
+              <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+                <Package size={32} className="text-emerald-600 mb-3" />
+                <p className="text-2xl font-bold text-slate-900 mb-1">Multi-Location</p>
+                <p className="text-sm text-slate-600">Warehouse Support</p>
+              </div>
+              <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+                <BarChart3 size={32} className="text-purple-600 mb-3" />
+                <p className="text-2xl font-bold text-slate-900 mb-1">Advanced</p>
+                <p className="text-sm text-slate-600">Reporting & Analytics</p>
+              </div>
+              <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+                <Shield size={32} className="text-amber-600 mb-3" />
+                <p className="text-2xl font-bold text-slate-900 mb-1">Secure</p>
+                <p className="text-sm text-slate-600">Role-Based Access</p>
+              </div>
             </motion.div>
           </motion.div>
+        </div>
+      </section>
 
-          <motion.div className="grid grid-cols-2 md:grid-cols-4 gap-6" {...revealOnScroll}>
-            {featuredArrivals.map((item) => (
-              <motion.div variants={revealItem} key={item.id} className="group h-full">
-                <Link
-                  to={`/products/${item.slug}`}
-                  className="flex h-full flex-col rounded-2xl border border-white/10 bg-[#171B26]/70 overflow-hidden shadow-xl shadow-black/20 transition-all hover:-translate-y-1.5 hover:border-[#3B82F6]/40"
-                >
-                  <ProductImage images={item.images} alt={item.title} />
-                  <div className="flex flex-1 flex-col p-4">
-                    <div className="text-[10px] uppercase tracking-[0.3em] text-[#F59E0B] mb-1.5">{item.badge}</div>
-                    <h3 className="text-sm font-black text-white mb-1 leading-tight line-clamp-2">{item.title}</h3>
-                    <p className="text-[11px] text-white/50 leading-snug mb-3 line-clamp-1">{item.subtitle}</p>
-                    <div className="mt-auto flex items-center justify-between gap-2">
-                      <span className="text-lg font-black text-white">{formatPeso(item.price)}</span>
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/5 text-white/40 transition-all group-hover:bg-[#3B82F6] group-hover:text-white">
-                        <ArrowRight size={13} />
-                      </span>
-                    </div>
-                  </div>
-                </Link>
+      {/* Features Section */}
+      <section id="features" className="py-20 lg:py-32 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.2 }}
+            variants={fadeInUp}
+            className="text-center mb-16"
+          >
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-medium mb-4">
+              <TrendingUp size={14} />
+              Powerful Features
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
+              Everything You Need to Manage Your Warehouse
+            </h2>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+              From receiving to shipping, our comprehensive system covers every aspect of warehouse operations.
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.2 }}
+            variants={staggerContainer}
+            className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
+          >
+            {features.map((feature, index) => (
+              <motion.div
+                key={index}
+                variants={fadeInUp}
+                className="bg-white rounded-xl p-6 border border-slate-200 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-center justify-center w-12 h-12 bg-blue-50 rounded-lg mb-4">
+                  <feature.icon size={24} className="text-blue-600" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">{feature.title}</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">{feature.description}</p>
               </motion.div>
             ))}
           </motion.div>
         </div>
       </section>
 
-      <section id="featured" className="relative z-20">
-        <FeaturedProducts onInquire={handleProductInquire} />
-      </section>
-
-      <section id="about" className="relative z-20 overflow-hidden bg-[#0B0D14] border-t border-white/5">
-        <div className="h-1 bg-gradient-to-r from-[#3B82F6] via-[#2563EB] to-[#3B82F6]" />
-        <div className="pointer-events-none absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#3B82F6]/[0.05] blur-3xl" />
-
-        <div className="max-w-7xl mx-auto px-6 lg:px-12 py-24">
-          <motion.div className="grid gap-12 lg:grid-cols-[0.95fr_0.9fr] items-center" {...revealOnScroll}>
-            <motion.div variants={revealItem}>
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-mono text-[#F59E0B] uppercase tracking-[0.3em] mb-4">
-                <Award size={13} />
-                ABOUT US
+      {/* Benefits Section */}
+      <section id="benefits" className="py-20 lg:py-32 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, amount: 0.2 }}
+              variants={fadeInUp}
+            >
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium mb-4">
+                <CheckCircle size={14} />
+                Key Benefits
               </div>
-              <h2 className="text-4xl sm:text-5xl font-extrabold text-white mb-5" style={{ textShadow: '0 0 30px rgba(59, 130, 246, 0.5), 0 0 60px rgba(59, 130, 246, 0.3)' }}>
-                Red Indian Customs is more than just a parts shop.
+              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-6">
+                Built for Modern Warehouse Operations
               </h2>
-              <p className="max-w-2xl text-sm sm:text-base text-white/60 leading-relaxed mb-8">
-                Red Indian Customs is a destination for craftsmanship and freedom. We bring classic soul and modern engineering together with custom parts made for riders who demand quality.
+              <p className="text-lg text-slate-600 mb-8">
+                Our system is designed to handle the complexities of modern inventory management with features that
+                save time, reduce errors, and improve efficiency.
               </p>
 
-              <div className="grid gap-4 sm:grid-cols-3">
-                {[
-                  { title: 'Craftsmanship', text: 'Hand-selected components for distinct custom builds.', icon: <Wrench size={24} className="text-[#3B82F6]" /> },
-                  { title: 'Heritage', text: 'Classic style with authentic motorcycle soul.', icon: <Bike size={24} className="text-[#3B82F6]" /> },
-                  { title: 'Performance', text: 'Parts that look great and ride strong.', icon: <Zap size={24} className="text-[#3B82F6]" /> }
-                ].map((item) => (
-                  <motion.div 
-                    key={item.title} 
-                    className="rounded-3xl border border-white/10 bg-[#171B26]/70 p-5 hover:border-[#3B82F6]/30 hover:bg-[#171B26]/90 transition-all duration-300 group"
-                    whileHover={{ y: -4 }}
-                  >
-                    <div className="text-2xl mb-2">{item.icon}</div>
-                    <div className="text-sm uppercase tracking-[0.25em] text-[#F59E0B] mb-2">{item.title}</div>
-                    <p className="text-sm text-white/60 leading-relaxed">{item.text}</p>
-                  </motion.div>
+              <div className="grid sm:grid-cols-2 gap-4">
+                {benefits.map((benefit, index) => (
+                  <div key={index} className="flex items-start gap-3">
+                    <CheckCircle size={20} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+                    <span className="text-sm text-slate-700">{benefit}</span>
+                  </div>
                 ))}
               </div>
             </motion.div>
-            <motion.div variants={revealItem} className="rounded-3xl overflow-hidden border border-white/10 bg-[#171B26]/70 p-6 shadow-2xl shadow-black/20">
-              <div className="relative h-96 rounded-3xl overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-[#111827] via-[#111827] to-[#0f172a]" />
-                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[220px] h-[220px] rounded-full bg-[#3B82F6]/20 blur-3xl" />
-                <div className="absolute inset-0 flex items-center justify-center text-center p-8">
+
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, amount: 0.2 }}
+              variants={fadeInUp}
+              className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm"
+            >
+              <div className="space-y-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex items-center justify-center w-10 h-10 bg-blue-50 rounded-lg flex-shrink-0">
+                    <Package size={20} className="text-blue-600" />
+                  </div>
                   <div>
-                    <div className="text-xs font-mono uppercase tracking-wider text-[#F59E0B] mb-2">Premium Custom Builds</div>
-                    <div className="text-3xl sm:text-4xl font-black text-white">Crafted with Passion</div>
-                    <div className="mt-4 text-sm text-white/60">From concept to chrome, every part is curated for riders who want standout performance.</div>
+                    <h4 className="font-semibold text-slate-900 mb-1">Comprehensive Tracking</h4>
+                    <p className="text-sm text-slate-600">
+                      Track every item from receiving to shipping with full traceability
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex items-center justify-center w-10 h-10 bg-emerald-50 rounded-lg flex-shrink-0">
+                    <Warehouse size={20} className="text-emerald-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-900 mb-1">Multi-Location Support</h4>
+                    <p className="text-sm text-slate-600">
+                      Manage multiple warehouses with location-specific inventory
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex items-center justify-center w-10 h-10 bg-purple-50 rounded-lg flex-shrink-0">
+                    <BarChart3 size={20} className="text-purple-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-900 mb-1">Powerful Reporting</h4>
+                    <p className="text-sm text-slate-600">Generate insights with comprehensive analytics and reports</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex items-center justify-center w-10 h-10 bg-amber-50 rounded-lg flex-shrink-0">
+                    <Shield size={20} className="text-amber-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-900 mb-1">Enterprise Security</h4>
+                    <p className="text-sm text-slate-600">Role-based access control with full audit trails</p>
                   </div>
                 </div>
               </div>
             </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 lg:py-32 bg-blue-600">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.2 }}
+            variants={fadeInUp}
+          >
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
+              Ready to Transform Your Warehouse Operations?
+            </h2>
+            <p className="text-lg text-blue-100 mb-8 max-w-2xl mx-auto">
+              Join modern businesses using our inventory management system to streamline operations and boost
+              efficiency.
+            </p>
+            <button
+              onClick={() => setAuthMode('signup')}
+              className="px-8 py-3 bg-white hover:bg-slate-50 text-blue-600 font-medium rounded-lg transition-colors inline-flex items-center gap-2 shadow-lg"
+            >
+              Get Started Now
+              <ArrowRight size={18} />
+            </button>
           </motion.div>
         </div>
       </section>
 
-      <ContactSection />
-
-      <footer className="relative z-20 border-t border-white/5 bg-[#090A0F] pt-16 pb-8 px-6 lg:px-12">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-14">
+      {/* Footer */}
+      <footer id="contact" className="bg-slate-900 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-3 gap-8 mb-8">
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl overflow-hidden border border-white/10 shadow-lg shadow-red-950/60 bg-[#0b0d14] flex items-center justify-center text-sm uppercase tracking-[0.2em] text-white/70">RIC</div>
+                <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-700">
+                  <img src={logo} alt="Logo" className="w-full h-full object-cover" />
+                </div>
                 <div>
-                  <div className="font-sans font-black uppercase tracking-wider text-sm">
-                    <span className="text-[#E52E2E]">Red </span>
-                    <span className="text-white">Indian </span>
-                    <span className="text-[#3B82F6]">Customs</span>
-                  </div>
-                  <div className="text-[9px] text-[#F59E0B] font-mono tracking-widest">EST. 2014</div>
+                  <h3 className="text-sm font-bold text-white">Inventory Management</h3>
+                  <p className="text-xs text-slate-400">Warehouse Operations</p>
                 </div>
               </div>
-              <p className="text-gray-500 text-xs leading-relaxed">
-                Red Indian Customs is more than just a parts shop; it's a destination for craftsmanship and freedom. Founded on the principles of quality and custom performance, we bridge the gap between old-school soul and modern engineering.
+              <p className="text-sm text-slate-400">
+                Professional inventory management system for modern warehouse operations.
               </p>
             </div>
 
             <div>
-              <h4 className="font-mono text-[11px] font-bold uppercase tracking-widest text-gray-300 mb-4">YOUR ACCOUNT</h4>
-              <ul className="space-y-2 text-xs text-gray-500">
-                <li><button onClick={() => setShippingPolicyOpen(true)} className="hover:text-[#E52E2E] transition-colors text-left w-full">Shipping & Delivery</button></li>
-                <li><button onClick={() => setTermsOfServiceOpen(true)} className="hover:text-[#E52E2E] transition-colors text-left w-full">Terms of Service</button></li>
-                <li><button onClick={() => setRefundPolicyOpen(true)} className="hover:text-[#E52E2E] transition-colors text-left w-full">Refund policy</button></li>
+              <h4 className="text-sm font-semibold text-white mb-4">Quick Links</h4>
+              <ul className="space-y-2 text-sm text-slate-400">
+                <li>
+                  <a href="#features" className="hover:text-white transition-colors">
+                    Features
+                  </a>
+                </li>
+                <li>
+                  <a href="#benefits" className="hover:text-white transition-colors">
+                    Benefits
+                  </a>
+                </li>
+                <li>
+                  <button onClick={() => setAuthMode('login')} className="hover:text-white transition-colors">
+                    Sign In
+                  </button>
+                </li>
               </ul>
             </div>
 
             <div>
-              <h4 className="font-mono text-[11px] font-bold uppercase tracking-widest text-gray-300 mb-4">Portal Access</h4>
-              <ul className="space-y-2 text-xs text-gray-500">
-                <li>Owner Dashboard</li>
-                <li>Inventory Management</li>
-                <li>Work Order Tracking</li>
-                <li>Customer Registration</li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-mono text-[11px] font-bold uppercase tracking-widest text-gray-300 mb-4">Contact</h4>
-              <ul className="space-y-3 text-xs text-gray-500">
-                <li className="flex items-start gap-2">
-                  <MapPin size={13} className="text-[#E52E2E] flex-shrink-0 mt-0.5" />
-                  <span className="leading-relaxed">
-                    THE RED INDIAN CUSTOMS - OFFICIAL, DOOR 5 Fine Impression Compound, Near Storage Town, Diagonally Opposite of 7D, Aniceto Seno, Casuntingan<br />
-                    Mandaue City, Philippines
-                  </span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Phone size={13} className="text-[#E52E2E]" />
-                  <span>+639512335791</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Mail size={13} className="text-[#E52E2E]" />
-                  <span>sales@redindiancustom-motorcycles.com</span>
-                </li>
-              </ul>
+              <h4 className="text-sm font-semibold text-white mb-4">Contact</h4>
+              <p className="text-sm text-slate-400">
+                For inquiries about the system, please contact your system administrator.
+              </p>
             </div>
           </div>
 
-          <div className="border-t border-white/5 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="text-[10px] text-gray-600 font-mono">
-              © {new Date().getFullYear()} RED INDIAN CUSTOMS. ALL RIGHTS RESERVED. SPECIALIZED MOTORCYCLE PARTS & SUPPLY.
-            </div>
-            <div className="flex items-center gap-3">
-              {[Instagram, Facebook, Youtube].map((Icon, i) => (
-                <a 
-                  key={i} 
-                  href="#"
-                  className="w-8 h-8 rounded-lg bg-white/5 border border-white/8 flex items-center justify-center text-gray-500 hover:text-[#E52E2E] hover:border-red-500/30 transition-all"
-                >
-                  <Icon size={14} />
-                </a>
-              ))}
-            </div>
+          <div className="border-t border-slate-800 pt-8">
+            <p className="text-center text-sm text-slate-400">
+              © {new Date().getFullYear()} Inventory Management System. All rights reserved.
+            </p>
           </div>
         </div>
       </footer>
 
-      <AuthModal
-        mode={authMode}
-        onClose={() => setAuthMode(null)}
-        onSwitchMode={(next) => setAuthMode(next)}
-      />
-
-      <RefundPolicy
-        isOpen={refundPolicyOpen}
-        onClose={() => setRefundPolicyOpen(false)}
-      />
-
-      <TermsOfService
-        isOpen={termsOfServiceOpen}
-        onClose={() => setTermsOfServiceOpen(false)}
-      />
-
-      <ShippingPolicy
-        isOpen={shippingPolicyOpen}
-        onClose={() => setShippingPolicyOpen(false)}
-      />
+      {/* Auth Modal */}
+      <AuthModal mode={authMode} onClose={() => setAuthMode(null)} onSwitchMode={(mode) => setAuthMode(mode)} />
     </div>
   );
 }
