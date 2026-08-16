@@ -6,6 +6,7 @@ import DashboardLayout from '../layouts/DashboardLayout.jsx';
 import Landing from '../pages/public/Landing.jsx';
 import Login from '../pages/public/Login.jsx';
 import SignUp from '../pages/public/SignUp.jsx';
+import ResetPassword from '../pages/public/ResetPassword.jsx';
 import Dashboard from '../pages/dashboard/Dashboard.jsx';
 import UserManagement from '../pages/dashboard/UserManagement.jsx';
 import AuditLogs from '../pages/dashboard/admin/AuditLogs.jsx';
@@ -59,6 +60,7 @@ export default function AppRoutes() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignUp />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<DashboardLayout />}>

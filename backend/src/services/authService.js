@@ -11,24 +11,45 @@ export async function verifyEmployeeCode(code) {
   try {
     console.log('[authService] Verifying employee code:', code);
     
-    // Try to query employees table directly
-    const { data, error } = await supabaseAdmin
+    // First, check if the code exists at all (regardless of is_used status)
+    const { data: checkData, error: checkError } = await supabaseAdmin
       .from('employees')
-      .select('employee_code, full_name, email, employee_position, department, is_used')
+      .select('employee_code, is_used, used_at')
       .eq('employee_code', code)
-      .eq('is_used', false)
       .single();
     
-    // If we get a schema cache error, use fallback for known codes
-    if (error) {
-      console.error('[authService] Query error:', error);
+    // Handle schema cache error with fallback
+    if (checkError) {
+      console.error('[authService] Query error:', checkError);
       
-      // TEMPORARY FALLBACK: If it's a cache error and code is EMP-10001, return admin data
-      if (error.message && error.message.includes('schema cache')) {
-        console.warn('[authService] Schema cache error detected - using fallback data');
+      // TEMPORARY FALLBACK: If it's a cache error and code is EMP-10001
+      if (checkError.message && checkError.message.includes('schema cache')) {
+        console.warn('[authService] Schema cache error detected - checking fallback');
         
-        // Only return fallback for the admin code
         if (code === 'EMP-10001') {
+          // Check if this code was already used by querying auth.users
+          // This is a workaround since we can't query employees table
+          try {
+            const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+            
+            if (!authError && authUsers && authUsers.users) {
+              // Check if any user has this employee code in their metadata
+              const existingUser = authUsers.users.find(
+                user => user.user_metadata?.employeeCode === code
+              );
+              
+              if (existingUser) {
+                console.log('[authService] Code already used (found in auth.users)');
+                throw new AppError('This employee code has already been used to create an account. Please use the login form instead.', 400);
+              }
+            }
+          } catch (authCheckError) {
+            if (authCheckError instanceof AppError) {
+              throw authCheckError;
+            }
+            console.error('[authService] Could not check auth users:', authCheckError);
+          }
+          
           console.log('[authService] Returning fallback admin data');
           return {
             employee_code: 'EMP-10001',
@@ -37,17 +58,36 @@ export async function verifyEmployeeCode(code) {
             employee_position: 'admin',
             position: 'admin',
             department: 'Management',
-            _fallback: true // Mark as fallback data
+            _fallback: true
           };
         }
       }
       
-      // If it's a "not found" error, return null (invalid code)
-      if (error.code === 'PGRST116') {
-        console.log('[authService] No employee found for code:', code);
+      // If it's a "not found" error, code doesn't exist
+      if (checkError.code === 'PGRST116') {
+        console.log('[authService] Employee code not found:', code);
         return null;
       }
       
+      throw new AppError(checkError.message, 400);
+    }
+    
+    // If code exists but is already used
+    if (checkData && checkData.is_used) {
+      console.log('[authService] Employee code already used:', code);
+      throw new AppError('This employee code has already been used to create an account. Please use the login form instead.', 400);
+    }
+    
+    // Code exists and is not used - fetch full employee data
+    const { data, error } = await supabaseAdmin
+      .from('employees')
+      .select('employee_code, full_name, email, employee_position, department, is_used')
+      .eq('employee_code', code)
+      .eq('is_used', false)
+      .single();
+    
+    if (error) {
+      console.error('[authService] Error fetching employee data:', error);
       throw new AppError(error.message, 400);
     }
     
@@ -73,6 +113,12 @@ export async function verifyEmployeeCode(code) {
     
   } catch (error) {
     console.error('[authService] Error verifying employee code:', error);
+    
+    // If it's already an AppError with our custom message, throw it as-is
+    if (error instanceof AppError) {
+      throw error;
+    }
+    
     throw new AppError(error.message || 'Failed to verify employee code', 500);
   }
 }
@@ -110,7 +156,7 @@ export async function signUp({ email, password, fullName, employeeCode }) {
     const result = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true,
+      email_confirm: false, // Require email verification
       user_metadata: { 
         full_name: fullName, 
         fullName: fullName,
@@ -162,6 +208,10 @@ export async function signIn({ email, password }) {
   const { data, error } = await client.auth.signInWithPassword({ email, password });
   
   if (error) {
+    // Check for email not confirmed error
+    if (error.message && error.message.toLowerCase().includes('email not confirmed')) {
+      throw new AppError('Please verify your email before logging in. Check your inbox for the verification link.', 401);
+    }
     throw new AppError('Invalid email or password', 401);
   }
 
