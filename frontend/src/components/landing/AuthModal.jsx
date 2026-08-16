@@ -751,6 +751,13 @@ export default function AuthModal({
                   icon={Mail}
                   placeholder="you@example.com"
                   value={form.email}
+                  disabled={mode === 'signup' && employeeVerified}
+                  readOnly={mode === 'signup' && employeeVerified}
+                  className={
+                    mode === 'signup' && employeeVerified
+                      ? '!bg-slate-100/50 !text-slate-600 !cursor-not-allowed'
+                      : ''
+                  }
                   onChange={(e) =>
                     handleChange(
                       'email',

@@ -234,58 +234,45 @@ export function AuthProvider({ children }) {
 
 
       // ----------------------------------------------------------
-      // CALL SUPABASE RPC
+      // CALL BACKEND API
       // ----------------------------------------------------------
 
-      const {
-        data,
-        error,
-      } = await supabase.rpc(
-        'verify_employee_code',
-        {
-          p_employee_code: code,
+      try {
+        const response = await fetch('http://localhost:4000/api/auth/verify-employee-code', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ code }),
+        });
+
+        const result = await response.json();
+
+        // ----------------------------------------------------------
+        // HANDLE HTTP ERROR
+        // ----------------------------------------------------------
+
+        if (!response.ok) {
+          throw new Error(
+            result.error || 'Unable to verify employee code.'
+          );
         }
-      );
 
+        // ----------------------------------------------------------
+        // EMPLOYEE NOT FOUND
+        // ----------------------------------------------------------
 
-      // ----------------------------------------------------------
-      // HANDLE SUPABASE ERROR
-      // ----------------------------------------------------------
+        if (!result.employee) {
+          throw new Error(
+            'Invalid or already used employee biometric code.'
+          );
+        }
 
-      if (error) {
+        // ----------------------------------------------------------
+        // GET EMPLOYEE DATA
+        // ----------------------------------------------------------
 
-        console.error(
-          'Employee code verification error:',
-          error
-        );
-
-        throw new Error(
-          error.message ||
-          'Unable to verify employee code.'
-        );
-      }
-
-
-      // ----------------------------------------------------------
-      // EMPLOYEE NOT FOUND
-      // ----------------------------------------------------------
-
-      if (
-        !data ||
-        data.length === 0
-      ) {
-        throw new Error(
-          'Invalid or already used employee biometric code.'
-        );
-      }
-
-
-      // ----------------------------------------------------------
-      // GET EMPLOYEE RECORD
-      // ----------------------------------------------------------
-
-      const employee =
-        data[0];
+        const employee = result.employee;
 
 
       // ----------------------------------------------------------
@@ -313,11 +300,22 @@ export function AuthProvider({ children }) {
           employee.email,
 
         position:
-          employee.employee_position,
+          employee.position || employee.employee_position,
 
         is_used:
-          employee.is_used,
+          employee.is_used || false,
       };
+
+      } catch (error) {
+        console.error(
+          'Employee code verification error:',
+          error
+        );
+        throw new Error(
+          error.message ||
+          'Unable to verify employee code.'
+        );
+      }
     },
     []
   );

@@ -7,7 +7,21 @@ export function notFoundHandler(req, res) {
 // eslint-disable-next-line no-unused-vars
 export function errorHandler(err, req, res, next) {
   logger.error(err.message, err.stack);
+  
   const status = err.status || 500;
+  const isDev = process.env.NODE_ENV === 'development';
+  
+  // In development, send detailed error info
+  if (isDev) {
+    return res.status(status).json({
+      error: err.publicMessage || err.message || 'Something went wrong on the server',
+      details: err.message,
+      stack: err.stack,
+      code: err.code
+    });
+  }
+  
+  // In production, hide details
   res.status(status).json({
     error: err.publicMessage || 'Something went wrong on the server',
   });
