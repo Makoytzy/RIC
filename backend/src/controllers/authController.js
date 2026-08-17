@@ -21,17 +21,12 @@ export async function verifyEmployeeCode(req, res, next) {
     console.log('[authController] Calling authService.verifyEmployeeCode');
     const employee = await authService.verifyEmployeeCode(code.trim().toUpperCase());
     
-    console.log('[authController] Service returned:', employee);
-    
     if (!employee) {
-      console.log('[authController] No employee found');
       return res.status(404).json({ 
-        error: 'Invalid employee code or code already used',
-        employee: null 
+        error: 'Employee code not found. Please check the code and try again, or contact your administrator.'
       });
     }
     
-    console.log('[authController] Returning employee data');
     return res.json({ employee });
     
   } catch (err) {

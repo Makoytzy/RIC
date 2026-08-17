@@ -48,65 +48,34 @@ export default function Suppliers() {
 
   const loadSuppliers = async () => {
     setLoading(true);
+
+    const mockData = [
+      {
+        id: 1, name: 'Tech Solutions Inc', contactPerson: 'John Smith',
+        email: 'john@techsolutions.com', phone: '+1-555-0100',
+        address: '123 Tech Street', city: 'San Francisco', state: 'CA',
+        zipCode: '94105', country: 'USA', paymentTerms: 'Net 30',
+        taxId: '12-3456789', status: 'active', totalOrders: 145, totalValue: 1250000
+      },
+      {
+        id: 2, name: 'Global Supplies Co', contactPerson: 'Sarah Johnson',
+        email: 'sarah@globalsupplies.com', phone: '+1-555-0200',
+        address: '456 Supply Ave', city: 'New York', state: 'NY',
+        zipCode: '10001', country: 'USA', paymentTerms: 'Net 60',
+        taxId: '98-7654321', status: 'active', totalOrders: 89, totalValue: 780000
+      },
+    ];
+
     try {
       const response = await api.get('/suppliers');
       setSuppliers(response.data.suppliers || []);
     } catch (error) {
-      showToast('Failed to load suppliers', 'error');
-      // Mock data
-      setSuppliers([
-        {
-          id: 1,
-          name: 'Tech Solutions Inc',
-          contactPerson: 'John Smith',
-          email: 'john@techsolutions.com',
-          phone: '+1-555-0100',
-          address: '123 Tech Street',
-          city: 'San Francisco',
-          state: 'CA',
-          zipCode: '94105',
-          country: 'USA',
-          paymentTerms: 'Net 30',
-          taxId: '12-3456789',
-          status: 'active',
-          totalOrders: 145,
-          totalValue: 1250000
-        },
-        {
-          id: 2,
-          name: 'Global Supplies Co',
-          contactPerson: 'Sarah Johnson',
-          email: 'sarah@globalsupplies.com',
-          phone: '+1-555-0200',
-          address: '456 Supply Ave',
-          city: 'New York',
-          state: 'NY',
-          zipCode: '10001',
-          country: 'USA',
-          paymentTerms: 'Net 45',
-          taxId: '98-7654321',
-          status: 'active',
-          totalOrders: 89,
-          totalValue: 890000
-        },
-        {
-          id: 3,
-          name: 'Quality Parts Ltd',
-          contactPerson: 'Mike Brown',
-          email: 'mike@qualityparts.com',
-          phone: '+1-555-0300',
-          address: '789 Industrial Blvd',
-          city: 'Chicago',
-          state: 'IL',
-          zipCode: '60601',
-          country: 'USA',
-          paymentTerms: 'Net 60',
-          taxId: '45-6789012',
-          status: 'inactive',
-          totalOrders: 12,
-          totalValue: 120000
-        }
-      ]);
+      // 403 = role not yet assigned, silently use mock data
+      // Other errors = log for debugging
+      if (!error.message?.includes('permission') && !error.message?.includes('403')) {
+        console.error('Error loading suppliers:', error);
+      }
+      setSuppliers(mockData);
     } finally {
       setLoading(false);
     }

@@ -10,117 +10,140 @@ const DEFAULT_ROLE = 'operational_staff';
 export async function verifyEmployeeCode(code) {
   try {
     console.log('[authService] Verifying employee code:', code);
-    
-    // First, check if the code exists at all (regardless of is_used status)
+
+    // ── Try querying the employees table ──────────────────────
     const { data: checkData, error: checkError } = await supabaseAdmin
       .from('employees')
-      .select('employee_code, is_used, used_at')
+      .select('employee_code, full_name, email, employee_position, department, is_used, used_at')
       .eq('employee_code', code)
       .single();
-    
-    // Handle schema cache error with fallback
-    if (checkError) {
-      console.error('[authService] Query error:', checkError);
-      
-      // TEMPORARY FALLBACK: If it's a cache error and code is EMP-10001
-      if (checkError.message && checkError.message.includes('schema cache')) {
-        console.warn('[authService] Schema cache error detected - checking fallback');
-        
-        if (code === 'EMP-10001') {
-          // Check if this code was already used by querying auth.users
-          // This is a workaround since we can't query employees table
-          try {
-            const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers();
-            
-            if (!authError && authUsers && authUsers.users) {
-              // Check if any user has this employee code in their metadata
-              const existingUser = authUsers.users.find(
-                user => user.user_metadata?.employeeCode === code
-              );
-              
-              if (existingUser) {
-                console.log('[authService] Code already used (found in auth.users)');
-                throw new AppError('This employee code has already been used to create an account. Please use the login form instead.', 400);
-              }
-            }
-          } catch (authCheckError) {
-            if (authCheckError instanceof AppError) {
-              throw authCheckError;
-            }
-            console.error('[authService] Could not check auth users:', authCheckError);
-          }
-          
-          console.log('[authService] Returning fallback admin data');
-          return {
-            employee_code: 'EMP-10001',
-            full_name: 'Daisy Rey Daguplo',
-            email: 'daisyreydaguplo18@gmail.com',
-            employee_position: 'admin',
-            position: 'admin',
-            department: 'Management',
-            _fallback: true
-          };
-        }
-      }
-      
-      // If it's a "not found" error, code doesn't exist
-      if (checkError.code === 'PGRST116') {
-        console.log('[authService] Employee code not found:', code);
-        return null;
-      }
-      
-      throw new AppError(checkError.message, 400);
-    }
-    
-    // If code exists but is already used
-    if (checkData && checkData.is_used) {
-      console.log('[authService] Employee code already used:', code);
-      throw new AppError('This employee code has already been used to create an account. Please use the login form instead.', 400);
-    }
-    
-    // Code exists and is not used - fetch full employee data
-    const { data, error } = await supabaseAdmin
-      .from('employees')
-      .select('employee_code, full_name, email, employee_position, department, is_used')
-      .eq('employee_code', code)
-      .eq('is_used', false)
-      .single();
-    
-    if (error) {
-      console.error('[authService] Error fetching employee data:', error);
-      throw new AppError(error.message, 400);
-    }
-    
-    console.log('[authService] Found employee:', data);
 
-    if (!data) {
-      console.log('[authService] No employee found for code:', code);
-      return null;
+    // ── Handle errors ─────────────────────────────────────────
+    if (checkError) {
+      const errMsg = checkError.message || '';
+      console.error('[authService] Query error:', errMsg);
+
+      // Schema cache issue — PostgREST hasn't refreshed yet
+      // Don't expose the technical error; use the fallback table
+      if (errMsg.includes('schema cache') || errMsg.includes('PGRST205')) {
+        console.warn('[authService] Schema cache stale — running fallback lookup');
+        return await verifyEmployeeCodeFallback(code);
+      }
+
+      // Row not found — code simply doesn't exist
+      if (checkError.code === 'PGRST116') {
+        console.log('[authService] Code not found in employees table:', code);
+        return null; // Caller will show "invalid code" message
+      }
+
+      // Any other DB error — don't leak technical details
+      console.error('[authService] Unexpected DB error:', checkError);
+      throw new AppError(
+        'We could not verify this code right now. Please try again shortly.',
+        503
+      );
     }
-    
-    // Map employee_position to position for frontend compatibility
-    const result = {
-      employee_code: data.employee_code,
-      full_name: data.full_name,
-      email: data.email,
-      employee_position: data.employee_position,
-      position: data.employee_position,
-      department: data.department,
+
+    // ── Code found — check usage status ──────────────────────
+    if (checkData.is_used) {
+      console.log('[authService] Code already used:', code);
+      throw new AppError(
+        'This employee code has already been used to create an account. Please use the login form instead.',
+        400
+      );
+    }
+
+    // ── Success ───────────────────────────────────────────────
+    console.log('[authService] Code valid, returning employee data');
+    return {
+      employee_code:     checkData.employee_code,
+      full_name:         checkData.full_name,
+      email:             checkData.email,
+      employee_position: checkData.employee_position,
+      position:          checkData.employee_position,
+      department:        checkData.department,
     };
-    
-    console.log('[authService] Returning employee:', result);
-    return result;
-    
+
   } catch (error) {
-    console.error('[authService] Error verifying employee code:', error);
-    
-    // If it's already an AppError with our custom message, throw it as-is
-    if (error instanceof AppError) {
-      throw error;
-    }
-    
-    throw new AppError(error.message || 'Failed to verify employee code', 500);
+    // Re-throw AppErrors as-is; wrap everything else
+    if (error instanceof AppError) throw error;
+
+    console.error('[authService] Unexpected error in verifyEmployeeCode:', error);
+    throw new AppError(
+      'We could not verify this code right now. Please try again shortly.',
+      503
+    );
   }
+}
+
+/**
+ * Fallback employee lookup when PostgREST schema cache is stale.
+ * Uses auth.users metadata to detect already-used codes,
+ * and a hardcoded seed list for the initial employees.
+ */
+async function verifyEmployeeCodeFallback(code) {
+  console.log('[authService] Running fallback lookup for code:', code);
+
+  // ── Seed employee list (mirrors 006.sql) ─────────────────────
+  // Only needed while PostgREST cache is warming up.
+  const SEED_EMPLOYEES = {
+    'EMP-10001': { full_name: 'Daisy Rey Daguplo',    email: 'daisyreydaguplo18@gmail.com', employee_position: 'admin',             department: 'Management' },
+    'EMP-20001': { full_name: 'Maria Santos',          email: 'maria.santos@redindiancustoms.com',     employee_position: 'manager',           department: 'Operations' },
+    'EMP-20002': { full_name: 'John Chen',             email: 'john.chen@redindiancustoms.com',         employee_position: 'manager',           department: 'Logistics' },
+    'EMP-30001': { full_name: 'Sarah Williams',        email: 'sarah.williams@redindiancustoms.com',   employee_position: 'operational_staff', department: 'Operations' },
+    'EMP-30002': { full_name: 'Robert Johnson',        email: 'robert.johnson@redindiancustoms.com',   employee_position: 'operational_staff', department: 'Operations' },
+    'EMP-30003': { full_name: 'Emily Davis',           email: 'emily.davis@redindiancustoms.com',       employee_position: 'operational_staff', department: 'Inventory' },
+    'EMP-40001': { full_name: 'Michael Brown',         email: 'michael.brown@redindiancustoms.com',     employee_position: 'warehouse_staff',   department: 'Warehouse' },
+    'EMP-40002': { full_name: 'Jennifer Garcia',       email: 'jennifer.garcia@redindiancustoms.com',   employee_position: 'warehouse_staff',   department: 'Warehouse' },
+    'EMP-40003': { full_name: 'David Martinez',        email: 'david.martinez@redindiancustoms.com',   employee_position: 'warehouse_staff',   department: 'Warehouse' },
+    'EMP-40004': { full_name: 'Lisa Anderson',         email: 'lisa.anderson@redindiancustoms.com',     employee_position: 'warehouse_staff',   department: 'Receiving' },
+    'EMP-40005': { full_name: 'James Wilson',          email: 'james.wilson@redindiancustoms.com',     employee_position: 'warehouse_staff',   department: 'Picking' },
+    'EMP-50001': { full_name: 'Patricia Taylor',       email: 'patricia.taylor@redindiancustoms.com',   employee_position: 'sales_staff',       department: 'Sales' },
+    'EMP-50002': { full_name: 'Christopher Lee',       email: 'christopher.lee@redindiancustoms.com',   employee_position: 'sales_staff',       department: 'Sales' },
+    'EMP-50003': { full_name: 'Linda White',           email: 'linda.white@redindiancustoms.com',       employee_position: 'sales_staff',       department: 'Customer Service' },
+    'EMP-50004': { full_name: 'Daniel Harris',         email: 'daniel.harris@redindiancustoms.com',     employee_position: 'sales_staff',       department: 'Sales' },
+  };
+
+  const employee = SEED_EMPLOYEES[code];
+
+  // Code not in seed list — definitely invalid
+  if (!employee) {
+    console.log('[authService] Fallback: code not found in seed list:', code);
+    return null; // Triggers "Employee code not found" message in controller
+  }
+
+  // Check if this code was already used (look at auth.users metadata)
+  try {
+    const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+
+    if (!authError && authUsers?.users) {
+      const alreadyUsed = authUsers.users.some(
+        (u) => u.user_metadata?.employeeCode === code
+      );
+
+      if (alreadyUsed) {
+        console.log('[authService] Fallback: code already used:', code);
+        throw new AppError(
+          'This employee code has already been used to create an account. Please use the login form instead.',
+          400
+        );
+      }
+    }
+  } catch (err) {
+    if (err instanceof AppError) throw err;
+    console.warn('[authService] Could not check auth users for used-code detection:', err.message);
+  }
+
+  console.log('[authService] Fallback: returning seed employee data for:', code);
+  return {
+    employee_code:     code,
+    full_name:         employee.full_name,
+    email:             employee.email,
+    employee_position: employee.employee_position,
+    position:          employee.employee_position,
+    department:        employee.department,
+    _fallback:         true,
+  };
 }
 
 /**

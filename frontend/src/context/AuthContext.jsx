@@ -224,23 +224,34 @@ export function AuthProvider({ children }) {
         const result = await response.json();
 
         // ----------------------------------------------------------
-        // HANDLE HTTP ERROR
+        // HANDLE HTTP ERROR — map to user-friendly messages
         // ----------------------------------------------------------
 
         if (!response.ok) {
-          throw new Error(
-            result.error || 'Unable to verify employee code.'
-          );
+          const serverMsg = result.error || '';
+          
+          // Already used
+          if (serverMsg.toLowerCase().includes('already been used')) {
+            throw new Error('This biometric code has already been registered to an account. Please log in instead.');
+          }
+          // Not found
+          if (response.status === 404 || serverMsg.toLowerCase().includes('not found')) {
+            throw new Error('This biometric code is not registered in the system. Please check the code or contact your administrator.');
+          }
+          // Service temporarily unavailable (schema cache / DB issue)
+          if (response.status === 503 || serverMsg.toLowerCase().includes('try again')) {
+            throw new Error('Verification is temporarily unavailable. Please try again in a moment.');
+          }
+          // Generic fallback
+          throw new Error(serverMsg || 'Unable to verify employee code. Please try again.');
         }
 
         // ----------------------------------------------------------
-        // EMPLOYEE NOT FOUND
+        // EMPLOYEE NOT FOUND (200 but no employee)
         // ----------------------------------------------------------
 
         if (!result.employee) {
-          throw new Error(
-            'Invalid or already used employee biometric code.'
-          );
+          throw new Error('This biometric code is not registered in the system. Please check the code or contact your administrator.');
         }
 
         // ----------------------------------------------------------

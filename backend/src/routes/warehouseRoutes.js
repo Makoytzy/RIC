@@ -25,7 +25,7 @@ router.post('/receiving/:id/receive',
 // WAREHOUSE LOCATIONS ROUTES
 // ============================================
 router.get('/locations',
-  authorize(['admin', 'manager', 'operational_staff', 'warehouse_staff']),
+  authorize(['admin', 'manager', 'operational_staff', 'warehouse_staff', 'sales_staff']),
   warehouseController.getLocations
 );
 

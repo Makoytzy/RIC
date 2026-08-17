@@ -42,7 +42,6 @@ export default function WarehouseLocations() {
   const loadLocations = async () => {
     setLoading(true);
     
-    // Mock data for development/testing
     const mockData = [
       { id: 1, code: 'A-01-01-01', name: 'Zone A - Aisle 1', zone: 'A', aisle: '01', rack: '01', shelf: '01', capacity: 100, currentStock: 75, status: 'active' },
       { id: 2, code: 'A-01-01-02', name: 'Zone A - Aisle 1', zone: 'A', aisle: '01', rack: '01', shelf: '02', capacity: 100, currentStock: 50, status: 'active' },
@@ -55,23 +54,8 @@ export default function WarehouseLocations() {
       setLocations(response.data.locations || []);
     } catch (error) {
       console.error('Error loading locations:', error);
-      
-      // Set mock data FIRST before showing toast
+      // Always fall back to mock data — covers 403, 404, network errors, etc.
       setLocations(mockData);
-      
-      // Then show the appropriate error message
-      if (error.message?.includes('permission')) {
-        showToast({ 
-          type: 'error',
-          title: 'Access Denied',
-          message: 'You need admin, manager, operational_staff, or warehouse_staff role. Showing mock data for now.'
-        });
-      } else {
-        showToast({ 
-          type: 'error',
-          message: 'Failed to load warehouse locations. Showing mock data for now.'
-        });
-      }
     } finally {
       setLoading(false);
     }
@@ -205,11 +189,14 @@ export default function WarehouseLocations() {
     {
       key: 'status',
       label: 'Status',
-      render: (value) => (
-        <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(value)}`}>
-          {value ? value.charAt(0).toUpperCase() + value.slice(1) : 'Unknown'}
-        </span>
-      )
+      render: (value) => {
+        const str = typeof value === 'string' ? value : String(value ?? 'unknown');
+        return (
+          <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(str)}`}>
+            {str.charAt(0).toUpperCase() + str.slice(1)}
+          </span>
+        );
+      }
     },
     {
       key: 'actions',

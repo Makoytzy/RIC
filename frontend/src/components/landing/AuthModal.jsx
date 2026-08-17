@@ -16,7 +16,10 @@ import {
   RefreshCcw,
   KeyRound,
   ArrowLeft,
-  Send
+  Send,
+  SearchX,
+  ServerCrash,
+  PhoneCall,
 } from 'lucide-react';
 
 import { useAuth } from '../../hooks/useAuth.js';
@@ -26,7 +29,6 @@ import Button from '../common/Button.jsx';
 import Toast from '../common/Toast.jsx';
 import EmailVerificationModal from '../common/EmailVerificationModal.jsx';
 
-// ── animation presets ────────────────────────────────────────
 const modalVariants = {
   hidden: { opacity: 0, scale: 0.96, y: -12 },
   visible: { opacity: 1, scale: 1, y: 0 }
@@ -37,94 +39,242 @@ const cardVariants = {
   visible: { opacity: 1, scale: 1, y: 0 }
 };
 
-const slideVariants = {
-  enter: (dir) => ({ opacity: 0, x: dir > 0 ? 40 : -40 }),
-  center: { opacity: 1, x: 0 },
-  exit:  (dir) => ({ opacity: 0, x: dir > 0 ? -40 : 40 })
-};
-
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// ── Shared inner-card shell ───────────────────────────────────
+function InlineCard({ accentFrom, accentTo, onClose, children }) {
+  return (
+    <motion.div
+      className="fixed inset-0 z-[60] flex items-center justify-center px-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+    >
+      {/* Backdrop — blurs the entire page including the AuthModal behind */}
+      <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xl" />
+
+      <motion.div
+        className="relative z-10 w-full max-w-[320px] overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#1a1f2e] to-[#0f1219] shadow-2xl"
+        variants={cardVariants}
+        initial="hidden" animate="visible" exit="hidden"
+        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <div className={`h-[3px] w-full bg-gradient-to-r ${accentFrom} ${accentTo}`} />
+
+        {/* Close button */}
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="absolute right-3 top-3.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-slate-400 transition hover:bg-white/20 hover:text-white"
+          >
+            <X size={12} />
+          </button>
+        )}
+
+        <div className="px-5 pb-5 pt-6">{children}</div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ── Pulsing icon ring ─────────────────────────────────────────
+function PulseIcon({ icon: Icon, bgClass, shadowClass, ringClass, shake = false }) {
+  return (
+    <div className="mb-4 flex justify-center">
+      <div className="relative flex items-center justify-center">
+        <motion.span
+          className={`absolute h-[70px] w-[70px] rounded-full ${ringClass}`}
+          animate={{ scale: [1, 1.45, 1], opacity: [0.6, 0, 0.6] }}
+          transition={{ duration: 2.5, repeat: Infinity }} />
+        <motion.span
+          className={`absolute h-[50px] w-[50px] rounded-full ${ringClass}`}
+          animate={{ scale: [1, 1.25, 1], opacity: [0.4, 0, 0.4] }}
+          transition={{ duration: 2.5, delay: 0.5, repeat: Infinity }} />
+        <div className={`relative z-10 flex h-[50px] w-[50px] items-center justify-center rounded-full ${bgClass} shadow-lg ${shadowClass}`}>
+          {shake ? (
+            <motion.div
+              animate={{ rotate: [0, -10, 10, -10, 0] }}
+              transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 3 }}>
+              <Icon className="h-6 w-6 text-white" strokeWidth={2.5} />
+            </motion.div>
+          ) : (
+            <Icon className="h-6 w-6 text-white" strokeWidth={2.5} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Numbered list ─────────────────────────────────────────────
+function InfoList({ title, items, dotColor }) {
+  return (
+    <div className="mb-4 rounded-2xl border border-white/8 bg-white/[0.04] px-3 py-2.5">
+      <p className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500">{title}</p>
+      <ul className="space-y-1.5">
+        {items.map((item, i) => (
+          <li key={i} className="flex items-start gap-2 text-[11px] text-slate-300">
+            <span className={`mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full ${dotColor} text-[8px] font-bold`}>
+              {i + 1}
+            </span>
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// ============================================================
+// CODE NOT FOUND MODAL
+// ============================================================
+function CodeNotFound({ employeeCode, onClose }) {
+  return (
+    <InlineCard accentFrom="from-red-500" accentTo="to-rose-600" onClose={onClose}>
+      <PulseIcon
+        icon={SearchX}
+        bgClass="bg-gradient-to-br from-red-500 to-rose-600"
+        shadowClass="shadow-red-600/40"
+        ringClass="bg-red-500/10"
+      />
+      <h3 className="mb-1 text-center text-[15px] font-extrabold tracking-tight text-white">
+        Code Not Found
+      </h3>
+      <p className="mb-3 text-center text-[11px] leading-relaxed text-slate-400">
+        The biometric code you entered is not registered in the system.
+      </p>
+      <div className="mb-3 flex items-center justify-center gap-2 rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2">
+        <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-red-400/60">Entered</span>
+        <span className="font-mono text-[13px] font-extrabold text-red-300">{employeeCode}</span>
+      </div>
+      <div className="mb-3 flex items-start gap-2 rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2.5">
+        <PhoneCall size={13} className="mt-0.5 shrink-0 text-slate-400" />
+        <p className="text-[11px] leading-relaxed text-slate-400">
+          Contact your HR or system administrator to get your biometric code assigned.
+        </p>
+      </div>
+      <button type="button" onClick={onClose}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 py-2.5 text-[12px] font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white active:scale-[0.97]">
+        <RefreshCcw size={12} />Try Again
+      </button>
+
+      <p className="mt-4 text-center text-[10px] leading-relaxed text-slate-600">
+        If you believe this is an error, contact your administrator.
+      </p>
+    </InlineCard>
+  );
+}
 
 // ============================================================
 // CODE ALREADY USED — inline warning card
 // ============================================================
 function CodeAlreadyUsed({ employeeCode, onClose, onSwitchToLogin }) {
   return (
-    <motion.div
-      className="absolute inset-0 z-20 flex items-center justify-center rounded-[2rem] overflow-hidden"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
-    >
-      <motion.div
-        className="relative z-10 mx-5 w-full max-w-[300px] overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#1a1f2e] to-[#0f1219] shadow-2xl"
-        variants={cardVariants}
-        initial="hidden"
-        animate="visible"
-        exit="hidden"
-        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+    <InlineCard accentFrom="from-amber-400" accentTo="via-orange-500 to-amber-400" onClose={onClose}>
+      <PulseIcon
+        icon={ShieldAlert}
+        bgClass="bg-gradient-to-br from-amber-400 to-orange-600"
+        shadowClass="shadow-amber-600/40"
+        ringClass="bg-amber-500/10"
+        shake
+      />
+
+      <h3 className="mb-1.5 text-center text-[16px] font-extrabold tracking-tight text-white">
+        Code Already Registered
+      </h3>
+
+      <p className="mb-4 text-center text-[11px] leading-relaxed text-slate-400">
+        This biometric code has already been used to create an account.
+      </p>
+
+      <div className="mb-4 flex items-center justify-center gap-2.5 rounded-xl border border-amber-400/20 bg-amber-500/10 px-4 py-2.5">
+        <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-amber-400/60">Code</span>
+        <span className="font-mono text-[14px] font-extrabold text-amber-300">{employeeCode}</span>
+      </div>
+
+      <InfoList
+        title="What this means"
+        items={[
+          'Each biometric code is single-use only',
+          'An account already exists for this code',
+          'Log in using your registered credentials',
+        ]}
+        dotColor="bg-amber-500/20 text-amber-400"
+      />
+
+      <div className="flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={onSwitchToLogin}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 py-2.5 text-[13px] font-bold text-white shadow-lg shadow-amber-500/25 transition hover:from-amber-500 hover:to-orange-600 active:scale-[0.97]"
+        >
+          <LogIn size={14} />
+          Go to Login
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 py-2.5 text-[12px] font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white active:scale-[0.97]"
+        >
+          <RefreshCcw size={12} />
+          Try a Different Code
+        </button>
+      </div>
+
+      <p className="mt-4 text-center text-[10px] leading-relaxed text-slate-600">
+        Forgot your password or need a new code?<br />Contact your administrator.
+      </p>
+    </InlineCard>
+  );
+}
+
+// ============================================================
+// SERVICE UNAVAILABLE MODAL
+// ============================================================
+function ServiceUnavailable({ onClose }) {
+  return (
+    <InlineCard accentFrom="from-slate-500" accentTo="to-slate-600" onClose={onClose}>
+      <PulseIcon
+        icon={ServerCrash}
+        bgClass="bg-gradient-to-br from-slate-500 to-slate-700"
+        shadowClass="shadow-slate-600/40"
+        ringClass="bg-slate-500/10"
+      />
+
+      <h3 className="mb-1.5 text-center text-[16px] font-extrabold tracking-tight text-white">
+        Temporarily Unavailable
+      </h3>
+
+      <p className="mb-4 text-center text-[11px] leading-relaxed text-slate-400">
+        We couldn't verify your biometric code right now. This is a temporary issue.
+      </p>
+
+      <InfoList
+        title="What you can do"
+        items={[
+          'Wait a few seconds and try again',
+          'Refresh the page if the issue persists',
+          'Contact support if it keeps happening',
+        ]}
+        dotColor="bg-slate-500/30 text-slate-400"
+      />
+
+      <button
+        type="button"
+        onClick={onClose}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-slate-600 to-slate-700 py-2.5 text-[13px] font-bold text-white shadow-lg transition hover:from-slate-700 hover:to-slate-800 active:scale-[0.97]"
       >
-        <div className="h-[3px] w-full bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400" />
-        <div className="px-6 pb-6 pt-7">
-          <div className="mb-4 flex justify-center">
-            <div className="relative flex items-center justify-center">
-              <motion.span className="absolute h-[70px] w-[70px] rounded-full bg-amber-500/10"
-                animate={{ scale: [1, 1.45, 1], opacity: [0.7, 0, 0.7] }}
-                transition={{ duration: 2.6, repeat: Infinity }} />
-              <motion.span className="absolute h-[50px] w-[50px] rounded-full bg-amber-500/15"
-                animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0, 0.5] }}
-                transition={{ duration: 2.6, delay: 0.5, repeat: Infinity }} />
-              <div className="relative z-10 flex h-[50px] w-[50px] items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-600 shadow-lg shadow-amber-600/40">
-                <motion.div
-                  animate={{ rotate: [0, -10, 10, -10, 0] }}
-                  transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 3 }}>
-                  <ShieldAlert className="h-6 w-6 text-white" strokeWidth={2.5} />
-                </motion.div>
-              </div>
-            </div>
-          </div>
-          <h3 className="mb-1.5 text-center text-[16px] font-extrabold tracking-tight text-white">
-            Code Already Registered
-          </h3>
-          <p className="mb-4 text-center text-[11px] leading-relaxed text-slate-400">
-            This biometric code has already been used to create an account.
-          </p>
-          <div className="mb-4 flex items-center justify-center gap-2.5 rounded-xl border border-amber-400/20 bg-amber-500/10 px-4 py-2.5">
-            <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-amber-400/60">Code</span>
-            <span className="font-mono text-[14px] font-extrabold text-amber-300">{employeeCode}</span>
-          </div>
-          <div className="mb-5 rounded-2xl border border-white/8 bg-white/[0.04] px-4 py-3">
-            <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500">What this means</p>
-            <ul className="space-y-2">
-              {[
-                'Each biometric code is single-use only',
-                'An account already exists for this code',
-                'Log in using your registered credentials',
-              ].map((item, i) => (
-                <li key={i} className="flex items-center gap-2.5 text-[11px] text-slate-300">
-                  <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-[9px] font-bold text-amber-400">{i + 1}</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="flex flex-col gap-2">
-            <button type="button" onClick={onSwitchToLogin}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 py-2.5 text-[13px] font-bold text-white shadow-lg shadow-amber-500/25 transition hover:from-amber-500 hover:to-orange-600 active:scale-[0.97]">
-              <LogIn size={14} />Go to Login
-            </button>
-            <button type="button" onClick={onClose}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 py-2.5 text-[12px] font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white active:scale-[0.97]">
-              <RefreshCcw size={12} />Try a Different Code
-            </button>
-          </div>
-          <p className="mt-4 text-center text-[10px] leading-relaxed text-slate-600">
-            Forgot your password or need a new code?<br />Contact your administrator.
-          </p>
-        </div>
-      </motion.div>
-    </motion.div>
+        <RefreshCcw size={12} />
+        Try Again
+      </button>
+
+      <p className="mt-4 text-center text-[10px] leading-relaxed text-slate-600">
+        If the problem continues, contact your administrator.
+      </p>
+    </InlineCard>
   );
 }
 
@@ -319,6 +469,13 @@ export default function AuthModal({ mode, onClose, onSwitchMode }) {
   const [showCodeWarning, setShowCodeWarning] = useState(false);
   const [usedCode, setUsedCode]               = useState('');
 
+  // Code not found inline error
+  const [showCodeNotFound, setShowCodeNotFound] = useState(false);
+  const [notFoundCode, setNotFoundCode]         = useState('');
+
+  // Service unavailable inline error
+  const [showServiceUnavailable, setShowServiceUnavailable] = useState(false);
+
   // Sync view with mode prop
   useEffect(() => { setView(mode); }, [mode]);
 
@@ -335,6 +492,9 @@ export default function AuthModal({ mode, onClose, onSwitchMode }) {
     setShowConfirmPassword(false);
     setShowCodeWarning(false);
     setUsedCode('');
+    setShowCodeNotFound(false);
+    setNotFoundCode('');
+    setShowServiceUnavailable(false);
   }, [view]);
 
   // ── Toast helpers ──
@@ -383,10 +543,20 @@ export default function AuthModal({ mode, onClose, onSwitchMode }) {
       setEmployeeVerified(false);
       setEmployeeInfo(null);
       const msg = error?.message || '';
-      if (msg.toLowerCase().includes('already used') || msg.toLowerCase().includes('already been used')) {
+
+      if (msg.toLowerCase().includes('already used') || msg.toLowerCase().includes('already been used') || msg.toLowerCase().includes('already been registered')) {
+        // Code used — show amber "Already Registered" card
         setUsedCode(code);
         setShowCodeWarning(true);
+      } else if (msg.toLowerCase().includes('not registered') || msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('check the code')) {
+        // Code doesn't exist — show red "Code Not Found" card
+        setNotFoundCode(code);
+        setShowCodeNotFound(true);
+      } else if (msg.toLowerCase().includes('temporarily') || msg.toLowerCase().includes('try again shortly') || msg.toLowerCase().includes('unavailable')) {
+        // DB/service issue — show grey "Temporarily Unavailable" card
+        setShowServiceUnavailable(true);
       } else {
+        // Generic — show inline field error
         setErrors({ employeeCode: msg || 'Unable to verify employee code.' });
       }
     } finally {
@@ -450,6 +620,28 @@ export default function AuthModal({ mode, onClose, onSwitchMode }) {
   // ── Render ──
   return (
     <>
+      {/* ── Error overlay cards — rendered above the AuthModal ── */}
+      <AnimatePresence>
+        {showCodeWarning && (
+          <CodeAlreadyUsed
+            employeeCode={usedCode}
+            onClose={() => { setShowCodeWarning(false); setUsedCode(''); }}
+            onSwitchToLogin={() => { setShowCodeWarning(false); setUsedCode(''); setView('login'); onSwitchMode('login'); }}
+          />
+        )}
+        {showCodeNotFound && (
+          <CodeNotFound
+            employeeCode={notFoundCode}
+            onClose={() => { setShowCodeNotFound(false); setNotFoundCode(''); }}
+          />
+        )}
+        {showServiceUnavailable && (
+          <ServiceUnavailable
+            onClose={() => setShowServiceUnavailable(false)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Email verification modal */}
       <EmailVerificationModal
         isOpen={showEmailModal}
@@ -478,19 +670,8 @@ export default function AuthModal({ mode, onClose, onSwitchMode }) {
               transition={{ duration: 0.2, ease: 'easeOut' }}
             >
 
-              {/* Code already used overlay */}
-              <AnimatePresence>
-                {showCodeWarning && (
-                  <CodeAlreadyUsed
-                    employeeCode={usedCode}
-                    onClose={() => { setShowCodeWarning(false); setUsedCode(''); }}
-                    onSwitchToLogin={() => { setShowCodeWarning(false); setUsedCode(''); setView('login'); onSwitchMode('login'); }}
-                  />
-                )}
-              </AnimatePresence>
-
-              {/* Close button */}
-              {(view === 'login' || view === 'forgot') && (
+              {/* Close button — login and signup */}
+              {(view === 'login' || view === 'forgot' || view === 'signup') && (
                 <button
                   type="button" onClick={onClose} aria-label="Close modal"
                   className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-slate-200 shadow-sm backdrop-blur-xl transition hover:bg-white/20 hover:text-slate-50"

@@ -27,7 +27,7 @@ export default function Table({ columns = [], data = [], className = '' }) {
               <tr key={idx} className={idx % 2 ? 'bg-white' : 'bg-slate-50'}>
                 {columns.map((col) => (
                   <td key={col.key} className="px-4 py-3 align-top text-sm text-ink">
-                    {col.render ? col.render(row) : row[col.key]}
+                    {col.render ? col.render(row[col.key], row) : row[col.key]}
                   </td>
                 ))}
               </tr>

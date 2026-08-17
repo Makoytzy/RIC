@@ -1,21 +1,50 @@
-import { createClient } from '@supabase/supabase-js';
-import { logger } from '../utils/logger.js';
+import { supabaseAdmin } from '../config/supabase.js';
+import { AppError } from '../middleware/errorMiddleware.js';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+// ── Field mapping: camelCase (frontend) ↔ snake_case (database) ─
+const toDb = (d) => ({
+  name:           d.name,
+  contact_person: d.contactPerson ?? d.contact_person,
+  email:          d.email,
+  phone:          d.phone,
+  address:        d.address,
+  city:           d.city,
+  state:          d.state,
+  zip_code:       d.zipCode ?? d.zip_code,
+  country:        d.country,
+  payment_terms:  d.paymentTerms ?? d.payment_terms,
+  tax_id:         d.taxId ?? d.tax_id,
+  status:         d.status ?? 'active',
+  notes:          d.notes,
+});
 
-/**
- * Supplier Controller
- * Handles supplier management operations
- */
+const toClient = (row) => ({
+  id:            row.id,
+  name:          row.name,
+  contactPerson: row.contact_person,
+  email:         row.email,
+  phone:         row.phone,
+  address:       row.address,
+  city:          row.city,
+  state:         row.state,
+  zipCode:       row.zip_code,
+  country:       row.country,
+  paymentTerms:  row.payment_terms,
+  taxId:         row.tax_id,
+  status:        row.status,
+  notes:         row.notes,
+  totalOrders:   row.total_orders ?? 0,
+  totalValue:    row.total_value  ?? 0,
+  createdAt:     row.created_at,
+  updatedAt:     row.updated_at,
+});
 
-export const getSuppliers = async (req, res) => {
+// ── GET /api/suppliers ────────────────────────────────────────
+export const getSuppliers = async (req, res, next) => {
   try {
     const { status } = req.query;
 
-    let query = supabase
+    let query = supabaseAdmin
       .from('suppliers')
       .select('*')
       .order('name', { ascending: true });
@@ -23,142 +52,89 @@ export const getSuppliers = async (req, res) => {
     if (status) query = query.eq('status', status);
 
     const { data, error } = await query;
-
-    if (error) throw error;
+    if (error) throw new AppError(error.message, 500);
 
     res.json({
-      suppliers: data || [],
-      message: 'Suppliers retrieved successfully'
+      suppliers: (data || []).map(toClient),
     });
-  } catch (error) {
-    logger.error('Error fetching suppliers:', error);
-    res.status(500).json({ error: 'Failed to fetch suppliers' });
+  } catch (err) {
+    next(err);
   }
 };
 
-export const getSupplierById = async (req, res) => {
+// ── GET /api/suppliers/:id ────────────────────────────────────
+export const getSupplierById = async (req, res, next) => {
   try {
-    const { id } = req.params;
-
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('suppliers')
       .select('*')
-      .eq('id', id)
+      .eq('id', req.params.id)
       .single();
 
-    if (error) throw error;
+    if (error || !data) return res.status(404).json({ error: 'Supplier not found' });
 
-    if (!data) {
-      return res.status(404).json({ error: 'Supplier not found' });
-    }
-
-    res.json({
-      supplier: data,
-      message: 'Supplier retrieved successfully'
-    });
-  } catch (error) {
-    logger.error('Error fetching supplier:', error);
-    res.status(500).json({ error: 'Failed to fetch supplier' });
+    res.json({ supplier: toClient(data) });
+  } catch (err) {
+    next(err);
   }
 };
 
-export const createSupplier = async (req, res) => {
+// ── POST /api/suppliers ───────────────────────────────────────
+export const createSupplier = async (req, res, next) => {
   try {
-    const supplierData = req.body;
-    const userId = req.user.id;
+    const payload = { ...toDb(req.body), created_by: req.user.id };
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('suppliers')
-      .insert({
-        ...supplierData,
-        created_by: userId,
-        created_at: new Date().toISOString()
-      })
+      .insert(payload)
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) throw new AppError(error.message, 400);
 
-    // Log activity
-    await supabase.from('activity_log').insert({
-      user_id: userId,
-      action: 'supplier_created',
-      entity_type: 'supplier',
-      entity_id: data.id,
-      details: supplierData
-    });
-
-    res.status(201).json({
-      supplier: data,
-      message: 'Supplier created successfully'
-    });
-  } catch (error) {
-    logger.error('Error creating supplier:', error);
-    res.status(500).json({ error: 'Failed to create supplier' });
+    res.status(201).json({ supplier: toClient(data) });
+  } catch (err) {
+    next(err);
   }
 };
 
-export const updateSupplier = async (req, res) => {
+// ── PUT /api/suppliers/:id ────────────────────────────────────
+export const updateSupplier = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const updateData = req.body;
-    const userId = req.user.id;
+    const payload = {
+      ...toDb(req.body),
+      updated_by: req.user.id,
+      updated_at: new Date().toISOString(),
+    };
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('suppliers')
-      .update({
-        ...updateData,
-        updated_by: userId,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
+      .update(payload)
+      .eq('id', req.params.id)
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) throw new AppError(error.message, 400);
+    if (!data)  return res.status(404).json({ error: 'Supplier not found' });
 
-    // Log activity
-    await supabase.from('activity_log').insert({
-      user_id: userId,
-      action: 'supplier_updated',
-      entity_type: 'supplier',
-      entity_id: id,
-      details: updateData
-    });
-
-    res.json({
-      supplier: data,
-      message: 'Supplier updated successfully'
-    });
-  } catch (error) {
-    logger.error('Error updating supplier:', error);
-    res.status(500).json({ error: 'Failed to update supplier' });
+    res.json({ supplier: toClient(data) });
+  } catch (err) {
+    next(err);
   }
 };
 
-export const deleteSupplier = async (req, res) => {
+// ── DELETE /api/suppliers/:id ─────────────────────────────────
+export const deleteSupplier = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const userId = req.user.id;
-
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('suppliers')
       .delete()
-      .eq('id', id);
+      .eq('id', req.params.id);
 
-    if (error) throw error;
-
-    // Log activity
-    await supabase.from('activity_log').insert({
-      user_id: userId,
-      action: 'supplier_deleted',
-      entity_type: 'supplier',
-      entity_id: id
-    });
+    if (error) throw new AppError(error.message, 400);
 
     res.json({ message: 'Supplier deleted successfully' });
-  } catch (error) {
-    logger.error('Error deleting supplier:', error);
-    res.status(500).json({ error: 'Failed to delete supplier' });
+  } catch (err) {
+    next(err);
   }
 };

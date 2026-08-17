@@ -1,86 +1,105 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth.js';
-import KpiCard from '../../components/dashboard/KpiCard';
-import StatusBadge from '../../components/dashboard/StatusBadge';
 import {
-  Boxes, AlertTriangle, PackageCheck, ShoppingCart,
-  RotateCcw, AlertCircle, Users, FileText, TrendingUp,
-  Package, ClipboardList, BarChart2, CheckCircle,
-  Truck, ScanLine, Layers, Receipt, UserCheck,
-  ShieldCheck, Settings, Activity, Clock, ArrowRight,
+  Users, ShieldCheck, IdCard, Warehouse, Package, Barcode,
+  Ruler, Truck, ScrollText, Settings, LayoutDashboard,
+  Boxes, PackageCheck, MapPin, MoveRight, AlertTriangle,
+  ClipboardList, CheckCircle, RotateCcw, BarChart2, Bell,
+  FileStack, Ship, Calendar, ListChecks, ScanBarcode,
+  BookOpen, ShoppingCart, UserSearch, ArrowDown,
+  Receipt, Search, ChevronRight, Clock,
 } from 'lucide-react';
 
-const fadeInUp = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
-const staggerContainer = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
+// ── shared animation ──────────────────────────────────────────
+const fadeUp = { hidden: { opacity: 0, y: 18 }, visible: { opacity: 1, y: 0 } };
+const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.07 } } };
+
+// ── KPI card ──────────────────────────────────────────────────
+const VARIANT_STYLES = {
+  blue:   { bg: 'bg-blue-50',   icon: 'bg-blue-100 text-blue-600',   value: 'text-blue-700'   },
+  green:  { bg: 'bg-green-50',  icon: 'bg-green-100 text-green-600', value: 'text-green-700'  },
+  amber:  { bg: 'bg-amber-50',  icon: 'bg-amber-100 text-amber-600', value: 'text-amber-700'  },
+  red:    { bg: 'bg-red-50',    icon: 'bg-red-100 text-red-600',     value: 'text-red-700'    },
+  purple: { bg: 'bg-purple-50', icon: 'bg-purple-100 text-purple-600', value: 'text-purple-700' },
+  slate:  { bg: 'bg-slate-50',  icon: 'bg-slate-100 text-slate-600', value: 'text-slate-700'  },
 };
 
-// ── Quick Link card ──────────────────────────────────────────
-function QuickLink({ to, icon: Icon, label, description, color = 'blue' }) {
+function KpiCard({ icon: Icon, label, value, sub, variant = 'blue' }) {
+  const s = VARIANT_STYLES[variant] ?? VARIANT_STYLES.blue;
+  return (
+    <motion.div variants={fadeUp}
+      className={`rounded-xl border border-slate-200 ${s.bg} p-4 shadow-sm`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className={`rounded-lg p-2 ${s.icon}`}>
+          <Icon size={20} />
+        </div>
+      </div>
+      <p className={`mt-3 text-2xl font-bold ${s.value}`}>{value}</p>
+      <p className="mt-0.5 text-sm font-medium text-slate-700">{label}</p>
+      {sub && <p className="mt-0.5 text-xs text-slate-500">{sub}</p>}
+    </motion.div>
+  );
+}
+
+// ── quick-link tile ───────────────────────────────────────────
+function QuickLink({ to, icon: Icon, label, desc, color = 'blue' }) {
   const colors = {
-    blue:   'bg-blue-50   border-blue-200   text-blue-700   hover:bg-blue-100',
-    green:  'bg-green-50  border-green-200  text-green-700  hover:bg-green-100',
-    purple: 'bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100',
-    orange: 'bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100',
-    red:    'bg-red-50    border-red-200    text-red-700    hover:bg-red-100',
-    teal:   'bg-teal-50   border-teal-200   text-teal-700   hover:bg-teal-100',
+    blue:   'border-blue-200   bg-blue-50/70   text-blue-700   hover:bg-blue-100',
+    green:  'border-green-200  bg-green-50/70  text-green-700  hover:bg-green-100',
+    amber:  'border-amber-200  bg-amber-50/70  text-amber-700  hover:bg-amber-100',
+    red:    'border-red-200    bg-red-50/70    text-red-700    hover:bg-red-100',
+    purple: 'border-purple-200 bg-purple-50/70 text-purple-700 hover:bg-purple-100',
+    slate:  'border-slate-200  bg-slate-50/70  text-slate-700  hover:bg-slate-100',
+    teal:   'border-teal-200   bg-teal-50/70   text-teal-700   hover:bg-teal-100',
   };
   return (
     <Link to={to}>
-      <div className={`flex items-center gap-3 rounded-xl border p-4 transition-all cursor-pointer ${colors[color]}`}>
-        <div className="shrink-0 rounded-lg bg-white/70 p-2 shadow-sm">
-          <Icon size={20} />
+      <motion.div variants={fadeUp}
+        className={`flex items-center gap-3 rounded-xl border px-4 py-3 transition-all cursor-pointer ${colors[color]}`}>
+        <div className="shrink-0 rounded-lg bg-white/80 p-2 shadow-sm">
+          <Icon size={18} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold">{label}</p>
-          {description && <p className="text-xs opacity-70 truncate">{description}</p>}
+          <p className="text-sm font-semibold leading-tight">{label}</p>
+          {desc && <p className="mt-0.5 text-xs opacity-70 truncate">{desc}</p>}
         </div>
-        <ArrowRight size={14} className="shrink-0 opacity-50" />
-      </div>
+        <ChevronRight size={14} className="shrink-0 opacity-40" />
+      </motion.div>
     </Link>
   );
 }
 
-// ── Activity row ─────────────────────────────────────────────
-function ActivityRow({ time, user, action, reference, status }) {
+// ── section wrapper ───────────────────────────────────────────
+function Section({ title, children, cols = 3 }) {
   return (
-    <div className="flex items-start gap-3 border-b border-slate-100 py-3 last:border-0">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600 text-xs font-bold">
-        {user?.charAt(0) ?? '?'}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm text-slate-700">
-          <span className="font-medium">{user}</span> {action}
-        </p>
-        <p className="text-xs text-slate-400">{reference}</p>
-      </div>
-      <div className="flex flex-col items-end gap-1">
-        <StatusBadge status={status} />
-        <span className="text-[10px] text-slate-400">{time}</span>
-      </div>
-    </div>
+    <motion.div variants={fadeUp} initial="hidden" animate="visible" className="mb-6">
+      {title && <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">{title}</h3>}
+      <motion.div variants={stagger} initial="hidden" animate="visible"
+        className={`grid gap-4 ${
+          cols === 2 ? 'grid-cols-1 sm:grid-cols-2' :
+          cols === 3 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' :
+          cols === 4 ? 'grid-cols-2 lg:grid-cols-4' :
+          'grid-cols-1'
+        }`}>
+        {children}
+      </motion.div>
+    </motion.div>
   );
 }
 
-// ── Alert banner ─────────────────────────────────────────────
-function AlertBanner({ alerts }) {
-  if (!alerts?.length) return null;
+// ── alert banner ──────────────────────────────────────────────
+function AlertBanner({ items }) {
+  if (!items?.length) return null;
   return (
-    <motion.div variants={fadeInUp} className="mb-6">
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-        <div className="flex items-start gap-3">
-          <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-600" />
-          <div>
-            <h3 className="text-sm font-semibold text-amber-900 mb-1.5">Attention Required</h3>
-            <ul className="space-y-1">
-              {alerts.map((a, i) => (
-                <li key={i} className="text-sm text-amber-800">⚠ {a}</li>
-              ))}
-            </ul>
-          </div>
+    <motion.div variants={fadeUp} className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+      <div className="flex items-start gap-3">
+        <AlertTriangle size={17} className="mt-0.5 shrink-0 text-amber-600" />
+        <div>
+          <p className="text-sm font-semibold text-amber-900">Attention Required</p>
+          <ul className="mt-1 space-y-0.5">
+            {items.map((msg, i) => <li key={i} className="text-sm text-amber-800">⚠ {msg}</li>)}
+          </ul>
         </div>
       </div>
     </motion.div>
@@ -88,294 +107,298 @@ function AlertBanner({ alerts }) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// ROLE-SPECIFIC DASHBOARD CONTENT
+// ROLE DASHBOARDS
 // ══════════════════════════════════════════════════════════════
 
-// ── ADMIN DASHBOARD ──────────────────────────────────────────
-function AdminDashboard({ firstName }) {
-  const kpis = [
-    { title: 'Total Users',     value: '—', subtitle: 'Registered accounts',       icon: Users,         trend: null, variant: 'blue' },
-    { title: 'Total Inventory', value: '—', subtitle: 'Units in stock',             icon: Boxes,         trend: null, variant: 'purple' },
-    { title: 'Low Stock',       value: '—', subtitle: 'Products need restocking',   icon: AlertTriangle, trend: null, variant: 'orange' },
-    { title: 'Pending Orders',  value: '—', subtitle: 'Orders awaiting fulfillment',icon: ShoppingCart,  trend: null, variant: 'blue' },
-    { title: 'Defective Items', value: '—', subtitle: 'Awaiting resolution',        icon: AlertCircle,   trend: null, variant: 'red' },
-    { title: 'Audit Events',    value: '—', subtitle: 'Today\'s system events',     icon: Activity,      trend: null, variant: 'purple' },
-  ];
-  const quickLinks = [
-    { to: '/users',      icon: Users,       label: 'User Management',   description: 'Manage employee accounts',     color: 'blue' },
-    { to: '/roles',      icon: ShieldCheck, label: 'Role Management',   description: 'Assign and manage roles',      color: 'purple' },
-    { to: '/products',   icon: Package,     label: 'Product Management',description: 'Manage product catalogue',     color: 'green' },
-    { to: '/inventory',  icon: Boxes,       label: 'Inventory',         description: 'View full inventory',          color: 'teal' },
-    { to: '/audit-logs', icon: FileText,    label: 'Audit Logs',        description: 'View system activity logs',   color: 'orange' },
-    { to: '/settings',   icon: Settings,    label: 'System Settings',   description: 'Configure system preferences', color: 'red' },
-  ];
+// ── ADMIN ──────────────────────────────────────────────────────
+function AdminDashboard({ name }) {
   return (
     <>
-      <AlertBanner alerts={[
-        '128 products are low in stock',
-        '17 defective items require action',
-        '12 shipments have quantity discrepancies',
+      <AlertBanner items={[
+        'System configuration pending: warehouse hierarchy not fully set up',
+        'New employee registration codes need to be generated',
       ]} />
-      <motion.div variants={staggerContainer} initial="hidden" animate="visible"
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
-        {kpis.map((k, i) => (
-          <motion.div key={i} variants={fadeInUp}><KpiCard {...k} /></motion.div>
-        ))}
-      </motion.div>
+
+      {/* KPIs — Document: Total Users, Active Users, Pending Registrations,
+                         Warehouses, Products, System Alerts */}
+      <Section title="System Overview" cols={3}>
+        <KpiCard icon={Users}          label="Total Users"              value="—" sub="Registered accounts"      variant="blue"   />
+        <KpiCard icon={IdCard}         label="Active Users"             value="—" sub="Currently active"         variant="green"  />
+        <KpiCard icon={UserSearch}     label="Pending Registrations"    value="—" sub="Awaiting activation"      variant="amber"  />
+        <KpiCard icon={Warehouse}      label="Warehouses"               value="—" sub="Configured locations"     variant="purple" />
+        <KpiCard icon={Package}        label="Products"                 value="—" sub="In catalogue"             variant="slate"  />
+        <KpiCard icon={AlertTriangle}  label="System Alerts"            value="—" sub="Requiring attention"      variant="red"    />
+      </Section>
+
+      {/* Quick Actions — Document sidebar: Users | Roles & Permissions |
+          Employee Registration | Warehouses | Products | Barcode Configuration |
+          Capacity Rules | Suppliers | Audit Logs | Settings */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <motion.div variants={fadeInUp} initial="hidden" animate="visible"
-          className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-4 text-sm font-semibold text-slate-700">Quick Actions</h3>
-          <div className="grid grid-cols-1 gap-2.5">
-            {quickLinks.map((l) => <QuickLink key={l.to} {...l} />)}
-          </div>
-        </motion.div>
-        <motion.div variants={fadeInUp} initial="hidden" animate="visible"
-          className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-4 text-sm font-semibold text-slate-700">Recent Activity</h3>
-          <div>
-            {[
-              { time: '—', user: 'System', action: 'started',           reference: 'Inventory management system',  status: 'completed' },
-              { time: '—', user: 'Admin',  action: 'configured roles',  reference: 'Role assignment system',       status: 'approved' },
-            ].map((a, i) => <ActivityRow key={i} {...a} />)}
-          </div>
-        </motion.div>
+        <div>
+          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">System Administration</h3>
+          <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-2">
+            <QuickLink to="/users"          icon={Users}       label="User Management"        desc="Create, activate, deactivate users"            color="blue"   />
+            <QuickLink to="/roles"          icon={ShieldCheck} label="Roles & Permissions"    desc="Assign and manage role access"                 color="purple" />
+            <QuickLink to="/employees"      icon={IdCard}      label="Employee Registration"  desc="Generate and manage employee codes"            color="green"  />
+          </motion.div>
+        </div>
+        <div>
+          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Configuration</h3>
+          <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-2">
+            <QuickLink to="/warehouses"     icon={Warehouse}   label="Warehouses"             desc="Configure hierarchy: Level → Rack → Shelf"     color="teal"   />
+            <QuickLink to="/products"       icon={Package}     label="Products"               desc="Manage product catalogue"                      color="slate"  />
+            <QuickLink to="/barcode/config" icon={Barcode}     label="Barcode Configuration"  desc="Set barcode formats and rules"                 color="amber"  />
+            <QuickLink to="/capacity-rules" icon={Ruler}       label="Capacity Rules"         desc="Configure tire-size capacity rules"            color="amber"  />
+            <QuickLink to="/suppliers"      icon={Truck}       label="Suppliers"              desc="Manage supplier relationships"                 color="blue"   />
+          </motion.div>
+        </div>
+        <div>
+          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">System</h3>
+          <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-2">
+            <QuickLink to="/audit-logs"     icon={ScrollText}  label="Audit Logs"             desc="View system activity and change history"       color="slate"  />
+            <QuickLink to="/settings"       icon={Settings}    label="System Settings"        desc="Configure system-level preferences"            color="red"    />
+          </motion.div>
+        </div>
       </div>
     </>
   );
 }
 
-// ── MANAGER DASHBOARD ─────────────────────────────────────────
-function ManagerDashboard({ firstName }) {
-  const kpis = [
-    { title: 'Pending Approvals',    value: '—', subtitle: 'Requests awaiting your review', icon: CheckCircle,   trend: null, variant: 'orange' },
-    { title: 'Sales This Month',     value: '—', subtitle: 'Total revenue',                 icon: TrendingUp,    trend: null, variant: 'green' },
-    { title: 'Stock Movement',       value: '—', subtitle: 'Items moved today',             icon: Boxes,         trend: null, variant: 'blue' },
-    { title: 'Discrepancy Reports',  value: '—', subtitle: 'Open discrepancies',            icon: AlertCircle,   trend: null, variant: 'red' },
-    { title: 'Employee Efficiency',  value: '—', subtitle: 'Average task completion',       icon: BarChart2,     trend: null, variant: 'purple' },
-    { title: 'Return Rate',          value: '—', subtitle: 'Returns this month',            icon: RotateCcw,     trend: null, variant: 'orange' },
-  ];
-  const quickLinks = [
-    { to: '/approvals',                   icon: CheckCircle,   label: 'Approval Requests',      description: 'Review pending approvals',     color: 'orange' },
-    { to: '/reports/sales',               icon: TrendingUp,    label: 'Sales Reports',           description: 'View sales performance',       color: 'green' },
-    { to: '/reports/inventory',           icon: Boxes,         label: 'Inventory Reports',       description: 'Monitor stock levels',         color: 'blue' },
-    { to: '/reports/stock-movement',      icon: BarChart2,     label: 'Stock Movement',          description: 'Track inventory movements',    color: 'purple' },
-    { to: '/reports/discrepancies',       icon: AlertCircle,   label: 'Discrepancy Reports',     description: 'Review reported issues',       color: 'red' },
-    { to: '/reports/employee-efficiency', icon: UserCheck,     label: 'Employee Efficiency',     description: 'Monitor team performance',     color: 'teal' },
-  ];
+// ── MANAGER ───────────────────────────────────────────────────
+function ManagerDashboard({ name }) {
   return (
     <>
-      <AlertBanner alerts={['5 approval requests are pending your review']} />
-      <motion.div variants={staggerContainer} initial="hidden" animate="visible"
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
-        {kpis.map((k, i) => (
-          <motion.div key={i} variants={fadeInUp}><KpiCard {...k} /></motion.div>
-        ))}
-      </motion.div>
+      <AlertBanner items={['Pending approvals require your review']} />
+
+      {/* KPIs — Document: Total Inventory, Low Stock, Incoming Shipments,
+                         Pending Receiving, Storage Capacity, Discrepancies,
+                         Pending Approvals, Today's Orders */}
+      <Section title="Operational Overview" cols={4}>
+        <KpiCard icon={Boxes}         label="Total Inventory"      value="—" sub="Units in stock"               variant="blue"   />
+        <KpiCard icon={AlertTriangle} label="Low Stock"            value="—" sub="Products below threshold"     variant="amber"  />
+        <KpiCard icon={Ship}          label="Incoming Shipments"   value="—" sub="En route"                     variant="purple" />
+        <KpiCard icon={PackageCheck}  label="Pending Receiving"    value="—" sub="Awaiting dock check-in"       variant="slate"  />
+        <KpiCard icon={Warehouse}     label="Storage Capacity"     value="—" sub="Locations available"          variant="green"  />
+        <KpiCard icon={AlertTriangle} label="Discrepancies"        value="—" sub="Open cases"                   variant="red"    />
+        <KpiCard icon={CheckCircle}   label="Pending Approvals"    value="—" sub="Awaiting your review"         variant="amber"  />
+        <KpiCard icon={ShoppingCart}  label="Today's Orders"       value="—" sub="New orders today"             variant="teal" />
+      </Section>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <motion.div variants={fadeInUp} initial="hidden" animate="visible"
-          className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-4 text-sm font-semibold text-slate-700">Quick Actions</h3>
-          <div className="grid grid-cols-1 gap-2.5">
-            {quickLinks.map((l) => <QuickLink key={l.to} {...l} />)}
-          </div>
-        </motion.div>
-        <motion.div variants={fadeInUp} initial="hidden" animate="visible"
-          className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-4 text-sm font-semibold text-slate-700">Pending Approvals</h3>
-          <div className="flex flex-col items-center justify-center py-10 text-slate-400">
-            <CheckCircle size={32} className="mb-2 opacity-30" />
-            <p className="text-sm">No pending approvals</p>
-            <Link to="/approvals" className="mt-3 text-xs text-blue-600 hover:underline">View all approvals</Link>
-          </div>
-        </motion.div>
+        <div>
+          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Inventory & Warehouse</h3>
+          <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-2">
+            <QuickLink to="/inventory"       icon={Boxes}         label="Inventory Overview"    desc="Monitor stock levels and locations"           color="blue"   />
+            <QuickLink to="/receiving"       icon={PackageCheck}  label="Receiving"             desc="Review incoming shipment results"            color="green"  />
+            <QuickLink to="/warehouse"       icon={Warehouse}     label="Warehouse Storage"     desc="Monitor exact storage locations"             color="teal"   />
+            <QuickLink to="/barcodes"        icon={Barcode}       label="Barcode Monitoring"    desc="Individual tire traceability"                color="purple" />
+            <QuickLink to="/stock-movement"  icon={MoveRight}     label="Stock Movement"        desc="Track inventory movements"                   color="slate"  />
+            <QuickLink to="/discrepancies"   icon={AlertTriangle} label="Discrepancies"         desc="Approve or reject discrepancy actions"       color="red"    />
+          </motion.div>
+        </div>
+        <div>
+          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Operations & Reports</h3>
+          <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-2">
+            <QuickLink to="/approvals"                icon={CheckCircle}   label="Approval Requests"      desc="Review and approve pending requests"         color="amber"  />
+            <QuickLink to="/orders"                   icon={ShoppingCart}  label="Orders"                 desc="Monitor and supervise order activity"         color="blue"   />
+            <QuickLink to="/returns"                  icon={RotateCcw}     label="Returns / Refunds"      desc="Monitor return and refund cases"              color="amber"  />
+            <QuickLink to="/reports"                  icon={BarChart2}     label="All Reports"            desc="Access all operational reports"              color="purple" />
+            <QuickLink to="/reports/inventory"        icon={Boxes}         label="Inventory Reports"      desc="Stock level and movement reports"            color="green"  />
+            <QuickLink to="/reports/discrepancies"    icon={FileStack}     label="Discrepancy Reports"    desc="Missing, excess, wrong, damaged inventory"    color="red"    />
+          </motion.div>
+        </div>
       </div>
     </>
   );
 }
 
-// ── OPERATIONAL STAFF DASHBOARD ───────────────────────────────
-function OperationalDashboard({ firstName }) {
-  const kpis = [
-    { title: 'Pending Orders',       value: '—', subtitle: 'Orders to process',       icon: ShoppingCart,  trend: null, variant: 'blue' },
-    { title: 'Incoming Shipments',   value: '—', subtitle: 'Shipments to register',   icon: Truck,         trend: null, variant: 'purple' },
-    { title: 'Products Registered',  value: '—', subtitle: 'This week',               icon: Package,       trend: null, variant: 'green' },
-    { title: 'Batches Active',       value: '—', subtitle: 'In-progress batches',     icon: Layers,        trend: null, variant: 'orange' },
-    { title: 'Returns Pending',      value: '—', subtitle: 'Items to process',        icon: RotateCcw,     trend: null, variant: 'orange' },
-    { title: 'Waybills Today',       value: '—', subtitle: 'Generated today',         icon: FileText,      trend: null, variant: 'teal' },
-  ];
-  const quickLinks = [
-    { to: '/orders',            icon: ShoppingCart, label: 'Order Management',      description: 'Process pending orders',       color: 'blue' },
-    { to: '/shipments/incoming',icon: Truck,        label: 'Incoming Shipments',    description: 'Register new shipments',       color: 'purple' },
-    { to: '/products/register', icon: Package,      label: 'Product Registration',  description: 'Register new products',        color: 'green' },
-    { to: '/inventory/register',icon: Boxes,        label: 'Inventory Registration',description: 'Add inventory records',        color: 'teal' },
-    { to: '/batches',           icon: Layers,       label: 'Batch Management',      description: 'Manage product batches',       color: 'orange' },
-    { to: '/returns/process',   icon: RotateCcw,    label: 'Return Processing',     description: 'Process customer returns',     color: 'red' },
-  ];
+// ── OPERATIONAL STAFF ─────────────────────────────────────────
+function OperationalDashboard({ name }) {
   return (
     <>
-      <motion.div variants={staggerContainer} initial="hidden" animate="visible"
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
-        {kpis.map((k, i) => (
-          <motion.div key={i} variants={fadeInUp}><KpiCard {...k} /></motion.div>
-        ))}
-      </motion.div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <motion.div variants={fadeInUp} initial="hidden" animate="visible"
-          className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-4 text-sm font-semibold text-slate-700">Quick Actions</h3>
-          <div className="grid grid-cols-1 gap-2.5">
-            {quickLinks.map((l) => <QuickLink key={l.to} {...l} />)}
-          </div>
-        </motion.div>
-        <motion.div variants={fadeInUp} initial="hidden" animate="visible"
-          className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-4 text-sm font-semibold text-slate-700">Today's Tasks</h3>
-          <div className="space-y-3 text-sm text-slate-600">
-            {[
-              { label: 'Register incoming shipments', path: '/shipments/incoming', done: false },
-              { label: 'Update inventory records',    path: '/inventory/update',   done: false },
-              { label: 'Generate waybills',           path: '/waybill',            done: false },
-              { label: 'Process pending orders',      path: '/orders',             done: false },
-            ].map((t, i) => (
-              <Link key={i} to={t.path}
-                className="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5 hover:bg-blue-50 hover:border-blue-200 transition-colors">
-                <div className={`h-4 w-4 rounded border-2 ${t.done ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'}`} />
-                <span>{t.label}</span>
-                <ArrowRight size={12} className="ml-auto text-slate-400" />
-              </Link>
-            ))}
-          </div>
-        </motion.div>
-      </div>
-    </>
-  );
-}
+      {/* KPIs — Document: Expected Shipments, Today's Arrivals,
+                         Pending Shipments, Completed Shipments, Products Expected */}
+      <Section title="Shipment Overview" cols={3}>
+        <KpiCard icon={Calendar}      label="Expected Shipments"    value="—" sub="Scheduled arrivals"          variant="blue"   />
+        <KpiCard icon={Ship}          label="Today's Arrivals"      value="—" sub="Arriving today"              variant="green"  />
+        <KpiCard icon={Clock}         label="Pending Shipments"     value="—" sub="Not yet received"            variant="amber"  />
+        <KpiCard icon={CheckCircle}   label="Completed Shipments"   value="—" sub="Received this week"          variant="slate"  />
+        <KpiCard icon={Package}       label="Products Expected"     value="—" sub="Units on incoming shipments" variant="purple" />
+      </Section>
 
-// ── WAREHOUSE STAFF DASHBOARD ─────────────────────────────────
-function WarehouseDashboard({ firstName }) {
-  const kpis = [
-    { title: 'Pending Receiving',  value: '—', subtitle: 'Shipments at dock',         icon: PackageCheck,  trend: null, variant: 'purple' },
-    { title: 'Items to Pick',      value: '—', subtitle: 'Orders for picking',        icon: ClipboardList, trend: null, variant: 'blue' },
-    { title: 'Items to Pack',      value: '—', subtitle: 'Ready for packing',         icon: Package,       trend: null, variant: 'green' },
-    { title: 'Inspection Queue',   value: '—', subtitle: 'Items awaiting inspection', icon: ScanLine,      trend: null, variant: 'orange' },
-    { title: 'Defective Found',    value: '—', subtitle: 'Today\'s defects',          icon: AlertCircle,   trend: null, variant: 'red' },
-    { title: 'Tasks Completed',    value: '—', subtitle: 'Today\'s completions',      icon: CheckCircle,   trend: null, variant: 'teal' },
-  ];
-  const quickLinks = [
-    { to: '/receiving',              icon: Truck,         label: 'Receiving',            description: 'Log incoming shipments',       color: 'purple' },
-    { to: '/inspection',             icon: ScanLine,      label: 'Inspection',           description: 'Inspect received items',       color: 'orange' },
-    { to: '/picking',                icon: ClipboardList, label: 'Picking',              description: 'Pick items for orders',        color: 'blue' },
-    { to: '/picking/fifo',           icon: Layers,        label: 'FIFO Picking',         description: 'First-in-first-out picking',   color: 'green' },
-    { to: '/packing',                icon: Package,       label: 'Packing',              description: 'Pack picked items',            color: 'teal' },
-    { to: '/barcode/scan',           icon: ScanLine,      label: 'Barcode Scanner',      description: 'Scan product barcodes',        color: 'red' },
-  ];
-  return (
-    <>
-      <motion.div variants={staggerContainer} initial="hidden" animate="visible"
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
-        {kpis.map((k, i) => (
-          <motion.div key={i} variants={fadeInUp}><KpiCard {...k} /></motion.div>
-        ))}
-      </motion.div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <motion.div variants={fadeInUp} initial="hidden" animate="visible"
-          className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-4 text-sm font-semibold text-slate-700">Quick Actions</h3>
-          <div className="grid grid-cols-1 gap-2.5">
-            {quickLinks.map((l) => <QuickLink key={l.to} {...l} />)}
-          </div>
-        </motion.div>
-        <motion.div variants={fadeInUp} initial="hidden" animate="visible"
-          className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-4 text-sm font-semibold text-slate-700">Workflow Queue</h3>
-          <div className="space-y-2">
-            {[
-              { step: '1', label: 'Receive shipment at dock',    path: '/receiving',   color: 'bg-purple-100 text-purple-700' },
-              { step: '2', label: 'Inspect received items',      path: '/inspection',  color: 'bg-orange-100 text-orange-700' },
-              { step: '3', label: 'Pick items from shelves',     path: '/picking',     color: 'bg-blue-100 text-blue-700' },
-              { step: '4', label: 'Pack items for shipping',     path: '/packing',     color: 'bg-green-100 text-green-700' },
-              { step: '5', label: 'Attach waybill to shipment',  path: '/waybill/attach', color: 'bg-teal-100 text-teal-700' },
-            ].map((s, i) => (
-              <Link key={i} to={s.path}
-                className="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5 hover:border-blue-200 hover:bg-blue-50 transition-colors">
-                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${s.color}`}>
-                  {s.step}
-                </span>
+        <div>
+          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Shipments</h3>
+          <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-2">
+            <QuickLink to="/shipments/incoming"  icon={Ship}         label="Incoming Shipments"    desc="Create and manage shipment records"           color="blue"   />
+            <QuickLink to="/shipments/documents" icon={FileStack}    label="Shipment Documents"    desc="BL number, packing list, container info"       color="slate"  />
+            <QuickLink to="/shipments/schedule"  icon={Calendar}     label="Shipment Schedule"     desc="View expected arrival dates"                  color="purple" />
+          </motion.div>
+        </div>
+        <div>
+          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Products & Inventory</h3>
+          <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-2">
+            <QuickLink to="/products/list"       icon={Package}      label="Products"              desc="Encode product info and expected quantities"   color="green"  />
+            <QuickLink to="/expected-inventory"  icon={ListChecks}   label="Expected Inventory"    desc="Maintain expected inventory records"           color="teal"   />
+            <QuickLink to="/barcode/prepare"     icon={Barcode}      label="Barcode Preparation"   desc="Prepare shipment barcode information"          color="amber"  />
+            <QuickLink to="/suppliers"           icon={Truck}        label="Suppliers"             desc="View supplier information"                     color="slate"  />
+          </motion.div>
+        </div>
+      </div>
+
+      {/* Workflow guide */}
+      <div className="mt-6">
+        <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Shipment Preparation Workflow</h3>
+        <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-2">
+          {[
+            { step: '1', label: 'Create incoming shipment record',                    path: '/shipments/incoming',  color: 'bg-blue-100 text-blue-700'   },
+            { step: '2', label: 'Encode supplier, BL number, container & packing list', path: '/shipments/documents', color: 'bg-purple-100 text-purple-700' },
+            { step: '3', label: 'Encode product information and expected quantities', path: '/products/list',       color: 'bg-green-100 text-green-700'  },
+            { step: '4', label: 'Prepare barcode information for shipment',           path: '/barcode/prepare',     color: 'bg-amber-100 text-amber-700'  },
+            { step: '5', label: 'Confirm expected arrival date in schedule',          path: '/shipments/schedule',  color: 'bg-teal-100 text-teal-700'    },
+          ].map((s) => (
+            <Link key={s.step} to={s.path}>
+              <motion.div variants={fadeUp}
+                className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 hover:bg-blue-50 hover:border-blue-200 transition-colors">
+                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${s.color}`}>{s.step}</span>
                 <span className="text-sm text-slate-700">{s.label}</span>
-                <ArrowRight size={12} className="ml-auto text-slate-400" />
-              </Link>
-            ))}
-          </div>
+                <ChevronRight size={13} className="ml-auto text-slate-400" />
+              </motion.div>
+            </Link>
+          ))}
         </motion.div>
       </div>
     </>
   );
 }
 
-// ── SALES STAFF DASHBOARD ─────────────────────────────────────
-function SalesDashboard({ firstName }) {
-  const kpis = [
-    { title: 'Sales Orders',      value: '—', subtitle: 'Active orders',            icon: ShoppingCart, trend: null, variant: 'blue' },
-    { title: "Today's Revenue",   value: '—', subtitle: 'Sales today',              icon: TrendingUp,   trend: null, variant: 'green' },
-    { title: 'Pending Payments',  value: '—', subtitle: 'Awaiting payment',         icon: Receipt,      trend: null, variant: 'orange' },
-    { title: 'Customers',         value: '—', subtitle: 'Total customers',          icon: Users,        trend: null, variant: 'purple' },
-    { title: 'Pending Returns',   value: '—', subtitle: 'Returns to verify',        icon: RotateCcw,    trend: null, variant: 'orange' },
-    { title: 'Refunds Today',     value: '—', subtitle: 'Processed today',          icon: RotateCcw,    trend: null, variant: 'red' },
-  ];
-  const quickLinks = [
-    { to: '/sales/walk-in',   icon: ShoppingCart, label: 'Walk-in Sales',       description: 'Process walk-in customers',    color: 'blue' },
-    { to: '/sales/orders',    icon: ClipboardList,label: 'Sales Orders',        description: 'Manage sales orders',          color: 'purple' },
-    { to: '/customers',       icon: Users,        label: 'Customers',           description: 'View customer records',        color: 'teal' },
-    { to: '/payments',        icon: Receipt,      label: 'Payments',            description: 'Process payments',             color: 'green' },
-    { to: '/invoices',        icon: FileText,     label: 'Invoices',            description: 'Generate and view invoices',   color: 'orange' },
-    { to: '/returns/verify',  icon: RotateCcw,    label: 'Return Verification', description: 'Verify customer returns',      color: 'red' },
-  ];
+// ── WAREHOUSE STAFF ───────────────────────────────────────────
+function WarehouseDashboard({ name }) {
   return (
     <>
-      <motion.div variants={staggerContainer} initial="hidden" animate="visible"
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
-        {kpis.map((k, i) => (
-          <motion.div key={i} variants={fadeInUp}><KpiCard {...k} /></motion.div>
-        ))}
-      </motion.div>
+      {/* KPIs — Document: Shipments to Receive, Receiving Today,
+                         Items to Store, Storage Tasks, Pending Discrepancies,
+                         Stock Count Tasks */}
+      <Section title="Warehouse Overview" cols={3}>
+        <KpiCard icon={Ship}          label="Shipments to Receive"  value="—" sub="At dock awaiting check-in"   variant="purple" />
+        <KpiCard icon={PackageCheck}  label="Receiving Today"       value="—" sub="Scheduled for today"         variant="blue"   />
+        <KpiCard icon={MapPin}        label="Items to Store"        value="—" sub="Pending storage assignment"  variant="green"  />
+        <KpiCard icon={ListChecks}    label="Storage Tasks"         value="—" sub="Active put-away tasks"       variant="teal"   />
+        <KpiCard icon={AlertTriangle} label="Pending Discrepancies" value="—" sub="Open discrepancy reports"   variant="red"    />
+        <KpiCard icon={ClipboardList} label="Stock Count Tasks"     value="—" sub="Scheduled counts"           variant="amber"  />
+      </Section>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <motion.div variants={fadeInUp} initial="hidden" animate="visible"
-          className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-4 text-sm font-semibold text-slate-700">Quick Actions</h3>
-          <div className="grid grid-cols-1 gap-2.5">
-            {quickLinks.map((l) => <QuickLink key={l.to} {...l} />)}
-          </div>
-        </motion.div>
-        <motion.div variants={fadeInUp} initial="hidden" animate="visible"
-          className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-4 text-sm font-semibold text-slate-700">Sales Workflow</h3>
-          <div className="space-y-2">
+        <div>
+          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Quick Access</h3>
+          <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-2">
+            <QuickLink to="/receiving"       icon={PackageCheck}  label="Receiving"              desc="Receive physical shipments at dock"           color="blue"   />
+            <QuickLink to="/barcode/scan"    icon={ScanBarcode}   label="Barcode Scanner"        desc="Scan individual tire barcodes"                color="purple" />
+            <QuickLink to="/inventory"       icon={Boxes}         label="Inventory"              desc="View current inventory levels"                color="green"  />
+            <QuickLink to="/warehouse"       icon={Warehouse}     label="Storage Locations"      desc="Follow system-assigned shelf locations"       color="teal"   />
+            <QuickLink to="/stock-movement"  icon={MoveRight}     label="Stock Movement"         desc="Move stock between authorized locations"      color="slate"  />
+            <QuickLink to="/inventory/count" icon={ClipboardList} label="Inventory Count"        desc="Perform inventory counts"                     color="amber"  />
+            <QuickLink to="/discrepancies"   icon={AlertTriangle} label="Discrepancies"          desc="Create and report discrepancy cases"          color="red"    />
+            <QuickLink to="/location-lookup" icon={Search}        label="Location Lookup"        desc="Find exact location and traceability of a tire" color="blue" />
+          </motion.div>
+        </div>
+        <div>
+          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Physical Receiving Workflow</h3>
+          <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-2">
             {[
-              { step: '1', label: 'Create or find customer',     path: '/customers',       color: 'bg-blue-100 text-blue-700' },
-              { step: '2', label: 'Create sales order',          path: '/sales/orders',    color: 'bg-purple-100 text-purple-700' },
-              { step: '3', label: 'Release product to customer', path: '/product-release', color: 'bg-green-100 text-green-700' },
-              { step: '4', label: 'Process payment',             path: '/payments',        color: 'bg-orange-100 text-orange-700' },
-              { step: '5', label: 'Generate receipt / invoice',  path: '/receipts',        color: 'bg-teal-100 text-teal-700' },
-            ].map((s, i) => (
-              <Link key={i} to={s.path}
-                className="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5 hover:border-blue-200 hover:bg-blue-50 transition-colors">
-                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${s.color}`}>
-                  {s.step}
-                </span>
-                <span className="text-sm text-slate-700">{s.label}</span>
-                <ArrowRight size={12} className="ml-auto text-slate-400" />
+              { step: '1', label: 'Receive physical shipment at dock',                path: '/receiving',       color: 'bg-blue-100 text-blue-700'   },
+              { step: '2', label: 'Verify shipment documents and quantities',         path: '/receiving',       color: 'bg-purple-100 text-purple-700' },
+              { step: '3', label: 'Scan individual tire barcodes',                   path: '/barcode/scan',    color: 'bg-green-100 text-green-700'  },
+              { step: '4', label: 'Inspect tires and report any discrepancies',      path: '/discrepancies',   color: 'bg-amber-100 text-amber-700'  },
+              { step: '5', label: 'Follow system-assigned storage location',         path: '/warehouse',       color: 'bg-teal-100 text-teal-700'    },
+              { step: '6', label: 'Record stock movement after storage',             path: '/stock-movement',  color: 'bg-slate-100 text-slate-700'  },
+            ].map((s) => (
+              <Link key={s.step} to={s.path}>
+                <motion.div variants={fadeUp}
+                  className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 hover:bg-blue-50 hover:border-blue-200 transition-colors">
+                  <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${s.color}`}>{s.step}</span>
+                  <span className="text-sm text-slate-700">{s.label}</span>
+                  <ChevronRight size={13} className="ml-auto text-slate-400" />
+                </motion.div>
               </Link>
             ))}
-          </div>
-        </motion.div>
+          </motion.div>
+        </div>
       </div>
     </>
+  );
+}
+
+// ── SALES STAFF ───────────────────────────────────────────────
+function SalesDashboard({ name }) {
+  return (
+    <>
+      {/* KPIs — Document: Today's Orders, Pending Orders, Orders to Pick,
+                         Ready for Release, Completed Orders, Returns */}
+      <Section title="Sales Overview" cols={3}>
+        <KpiCard icon={ShoppingCart}  label="Today's Orders"        value="—" sub="New orders today"            variant="blue"   />
+        <KpiCard icon={Clock}         label="Pending Orders"         value="—" sub="Awaiting processing"         variant="amber"  />
+        <KpiCard icon={ListChecks}    label="Orders to Pick"         value="—" sub="Ready for warehouse pick"    variant="purple" />
+        <KpiCard icon={Package}       label="Ready for Release"      value="—" sub="Packed and waiting"          variant="green"  />
+        <KpiCard icon={CheckCircle}   label="Completed Orders"       value="—" sub="Delivered today"             variant="slate"  />
+        <KpiCard icon={RotateCcw}     label="Returns"                value="—" sub="Pending verification"        variant="red"    />
+      </Section>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div>
+          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Quick Access</h3>
+          <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-2">
+            <QuickLink to="/orders"          icon={ShoppingCart}  label="Orders"                  desc="Create and manage online & walk-in orders"   color="blue"   />
+            <QuickLink to="/customers"       icon={Users}         label="Customers"               desc="Create and view customer records"             color="green"  />
+            <QuickLink to="/inventory/lookup" icon={Search}       label="Inventory Lookup"        desc="Check inventory availability by product"      color="teal"   />
+            <QuickLink to="/picking"         icon={ListChecks}    label="Picking"                 desc="Create and monitor picking tasks"             color="purple" />
+            <QuickLink to="/barcode/scan"    icon={ScanBarcode}   label="Barcode Scanner"         desc="Verify individual inventory items"            color="slate"  />
+            <QuickLink to="/receipts"        icon={Receipt}       label="Acknowledgement Receipts" desc="Prepare and manage receipts"                 color="amber"  />
+            <QuickLink to="/returns"         icon={RotateCcw}     label="Returns"                 desc="Process sales-related returns"                color="red"    />
+          </motion.div>
+        </div>
+        <div>
+          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Sales Order Workflow</h3>
+          <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-2">
+            {[
+              { step: '1', label: 'Create or find the customer record',       path: '/customers',        color: 'bg-blue-100 text-blue-700'   },
+              { step: '2', label: 'Create online or walk-in order',           path: '/orders',           color: 'bg-purple-100 text-purple-700' },
+              { step: '3', label: 'Check inventory availability',             path: '/inventory/lookup', color: 'bg-green-100 text-green-700'  },
+              { step: '4', label: 'Create or monitor picking task',           path: '/picking',          color: 'bg-amber-100 text-amber-700'  },
+              { step: '5', label: 'Scan barcode to verify inventory item',    path: '/barcode/scan',     color: 'bg-teal-100 text-teal-700'    },
+              { step: '6', label: 'Prepare acknowledgement receipt',          path: '/receipts',         color: 'bg-slate-100 text-slate-700'  },
+            ].map((s) => (
+              <Link key={s.step} to={s.path}>
+                <motion.div variants={fadeUp}
+                  className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 hover:bg-blue-50 hover:border-blue-200 transition-colors">
+                  <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${s.color}`}>{s.step}</span>
+                  <span className="text-sm text-slate-700">{s.label}</span>
+                  <ChevronRight size={13} className="ml-auto text-slate-400" />
+                </motion.div>
+              </Link>
+            ))}
+          </motion.div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── No-role fallback ──────────────────────────────────────────
+function NoRoleDashboard() {
+  return (
+    <div className="rounded-xl border border-amber-200 bg-amber-50 p-8 text-center">
+      <AlertTriangle size={36} className="mx-auto mb-3 text-amber-500" />
+      <h3 className="mb-1 text-base font-semibold text-slate-800">No Role Assigned</h3>
+      <p className="text-sm text-slate-500">
+        Your account does not have a role yet. Please contact your administrator to get your role assigned.
+      </p>
+    </div>
   );
 }
 
 // ══════════════════════════════════════════════════════════════
-// MAIN DASHBOARD — picks the right view by role
+// MAIN DASHBOARD
 // ══════════════════════════════════════════════════════════════
 export default function Dashboard() {
   const { user, roles } = useAuth();
@@ -389,49 +412,37 @@ export default function Dashboard() {
 
   const hour     = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-  const currentDate = new Date().toLocaleDateString('en-US', {
+  const dateStr  = new Date().toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
 
-  const primaryRole = roles[0];
+  const role = roles[0];
 
-  // Pick the role-specific content
-  const renderContent = () => {
-    switch (primaryRole) {
-      case 'admin':             return <AdminDashboard       firstName={firstName} />;
-      case 'manager':           return <ManagerDashboard     firstName={firstName} />;
-      case 'operational_staff': return <OperationalDashboard firstName={firstName} />;
-      case 'warehouse_staff':   return <WarehouseDashboard   firstName={firstName} />;
-      case 'sales_staff':       return <SalesDashboard       firstName={firstName} />;
-      default:
-        return (
-          <div className="rounded-xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-            <AlertTriangle size={32} className="mx-auto mb-3 text-amber-500" />
-            <h3 className="font-semibold text-slate-700 mb-1">No role assigned yet</h3>
-            <p className="text-sm text-slate-500">
-              Your account doesn't have a role assigned. Please contact your administrator.
-            </p>
-          </div>
-        );
-    }
-  };
+  const content = {
+    admin:             <AdminDashboard     name={firstName} />,
+    manager:           <ManagerDashboard   name={firstName} />,
+    operational_staff: <OperationalDashboard name={firstName} />,
+    warehouse_staff:   <WarehouseDashboard name={firstName} />,
+    sales_staff:       <SalesDashboard     name={firstName} />,
+  }[role] ?? <NoRoleDashboard />;
 
   return (
-    <motion.div initial="hidden" animate="visible" variants={staggerContainer}>
+    <motion.div initial="hidden" animate="visible" variants={stagger}>
+
       {/* Greeting */}
-      <motion.div variants={fadeInUp} className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-900 mb-0.5">
+      <motion.div variants={fadeUp} className="mb-6">
+        <h2 className="text-2xl font-bold text-slate-900">
           {greeting}, {firstName}.
         </h2>
-        <p className="text-slate-500 text-sm">Here's what's happening with your inventory today.</p>
-        <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
-          <Clock size={11} />
-          {currentDate}
+        <p className="mt-0.5 text-sm text-slate-500">
+          Here's what's happening with your inventory today.
+        </p>
+        <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-400">
+          <Clock size={11} /> {dateStr}
         </p>
       </motion.div>
 
-      {/* Role-specific content */}
-      {renderContent()}
+      {content}
     </motion.div>
   );
 }

@@ -9,12 +9,12 @@ const router = express.Router();
 router.use(authenticate);
 
 router.get('/',
-  authorize(['admin', 'manager', 'operational_staff']),
+  authorize(['admin', 'manager', 'operational_staff', 'warehouse_staff', 'sales_staff']),
   supplierController.getSuppliers
 );
 
 router.get('/:id',
-  authorize(['admin', 'manager', 'operational_staff']),
+  authorize(['admin', 'manager', 'operational_staff', 'warehouse_staff', 'sales_staff']),
   supplierController.getSupplierById
 );
 

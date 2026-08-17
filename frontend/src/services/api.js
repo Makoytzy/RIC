@@ -17,7 +17,15 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    const status = error.response?.status;
     const message = error.response?.data?.error || error.message || 'Request failed';
+
+    // Suppress console noise for expected auth errors
+    if (status === 401 || status === 403) {
+      // Reject silently — callers decide whether to log or fall back
+      return Promise.reject(new Error(message));
+    }
+
     return Promise.reject(new Error(message));
   }
 );

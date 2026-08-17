@@ -2,226 +2,255 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute.jsx';
 import RoleRoute from './RoleRoute.jsx';
 import DashboardLayout from '../layouts/DashboardLayout.jsx';
+import { ROLES } from '../utils/permissions.js';
 
-// Public Pages
-import Landing from '../pages/public/Landing.jsx';
-import Login from '../pages/public/Login.jsx';
-import SignUp from '../pages/public/SignUp.jsx';
+// ── Public ────────────────────────────────────────────────────
+import Landing       from '../pages/public/Landing.jsx';
+import Login         from '../pages/public/Login.jsx';
+import SignUp        from '../pages/public/SignUp.jsx';
 import ResetPassword from '../pages/public/ResetPassword.jsx';
 
-// Common Pages
+// ── Common ────────────────────────────────────────────────────
 import Dashboard from '../pages/dashboard/Dashboard.jsx';
 
-// Admin Pages
-import UserManagement from '../pages/dashboard/UserManagement.jsx';
-import AuditLogs from '../pages/dashboard/admin/AuditLogs.jsx';
-import Inventory from '../pages/dashboard/admin/Inventory.jsx';
-import ProductManagement from '../pages/dashboard/admin/ProductManagement.jsx';
-import RoleManagement from '../pages/dashboard/admin/RoleManagement.jsx';
-import SystemSettings from '../pages/dashboard/admin/SystemSettings.jsx';
+// ── Admin ─────────────────────────────────────────────────────
+import UserManagement      from '../pages/dashboard/UserManagement.jsx';
+import RoleManagement      from '../pages/dashboard/admin/RoleManagement.jsx';
+import EmployeeRegistration from '../pages/dashboard/admin/EmployeeRegistration.jsx';
+import Warehouses          from '../pages/dashboard/admin/Warehouses.jsx';
+import ProductManagement   from '../pages/dashboard/admin/ProductManagement.jsx';
+import BarcodeConfig       from '../pages/dashboard/admin/BarcodeConfig.jsx';
+import CapacityRules       from '../pages/dashboard/admin/CapacityRules.jsx';
+import AuditLogs           from '../pages/dashboard/admin/AuditLogs.jsx';
+import SystemSettings      from '../pages/dashboard/admin/SystemSettings.jsx';
 
-// Manager Pages - Reports
-import AllReports from '../pages/dashboard/manager/AllReports.jsx';
-import ApprovalRequests from '../pages/dashboard/manager/ApprovalRequests.jsx';
-import DefectReports from '../pages/dashboard/manager/DefectReports.jsx';
-import DiscrepancyReports from '../pages/dashboard/manager/DiscrepancyReports.jsx';
-import EmployeeEfficiency from '../pages/dashboard/manager/EmployeeEfficiency.jsx';
-import InventoryReports from '../pages/dashboard/manager/InventoryReports.jsx';
-import RefundReports from '../pages/dashboard/manager/RefundReports.jsx';
-import ReturnReports from '../pages/dashboard/manager/ReturnReports.jsx';
-import SalesReports from '../pages/dashboard/manager/SalesReports.jsx';
+// ── Manager ───────────────────────────────────────────────────
+import BarcodeMonitoring   from '../pages/dashboard/manager/BarcodeMonitoring.jsx';
+import ApprovalRequests    from '../pages/dashboard/manager/ApprovalRequests.jsx';
+import AllReports          from '../pages/dashboard/manager/AllReports.jsx';
+import InventoryReports    from '../pages/dashboard/manager/InventoryReports.jsx';
+import SalesReports        from '../pages/dashboard/manager/SalesReports.jsx';
 import StockMovementReports from '../pages/dashboard/manager/StockMovementReports.jsx';
+import DiscrepancyReports  from '../pages/dashboard/manager/DiscrepancyReports.jsx';
+import DefectReports       from '../pages/dashboard/manager/DefectReports.jsx';
+import ReturnReports       from '../pages/dashboard/manager/ReturnReports.jsx';
+import EmployeeEfficiency  from '../pages/dashboard/manager/EmployeeEfficiency.jsx';
 
-// Operational Staff Pages
-import BarcodeGeneration from '../pages/dashboard/operational/BarcodeGeneration.jsx';
-import BatchManagement from '../pages/dashboard/operational/BatchManagement.jsx';
-import InventoryRegistration from '../pages/dashboard/operational/InventoryRegistration.jsx';
-import InventoryUpdate from '../pages/dashboard/operational/InventoryUpdate.jsx';
-import OrderManagement from '../pages/dashboard/operational/OrderManagement.jsx';
-import PackingSlip from '../pages/dashboard/operational/PackingSlip.jsx';
-import ProductRegistration from '../pages/dashboard/operational/ProductRegistration.jsx';
-import ReturnProcessing from '../pages/dashboard/operational/ReturnProcessing.jsx';
+// ── Operational Staff ─────────────────────────────────────────
 import ShipmentRegistration from '../pages/dashboard/operational/ShipmentRegistration.jsx';
-import Waybill from '../pages/dashboard/operational/Waybill.jsx';
+import ShipmentDocuments   from '../pages/dashboard/operational/ShipmentDocuments.jsx';
+import ShipmentSchedule    from '../pages/dashboard/operational/ShipmentSchedule.jsx';
+import ProductsList        from '../pages/dashboard/operational/ProductsList.jsx';
+import ProductRegistration from '../pages/dashboard/operational/ProductRegistration.jsx';
+import ExpectedInventory   from '../pages/dashboard/operational/ExpectedInventory.jsx';
+import BarcodePreparation  from '../pages/dashboard/operational/BarcodePreparation.jsx';
+import BarcodeGeneration   from '../pages/dashboard/operational/BarcodeGeneration.jsx';
+import BatchManagement     from '../pages/dashboard/operational/BatchManagement.jsx';
+import InventoryRegistration from '../pages/dashboard/operational/InventoryRegistration.jsx';
+import InventoryUpdate     from '../pages/dashboard/operational/InventoryUpdate.jsx';
+import OrderManagement     from '../pages/dashboard/operational/OrderManagement.jsx';
+import PackingSlip         from '../pages/dashboard/operational/PackingSlip.jsx';
+import ReturnProcessing    from '../pages/dashboard/operational/ReturnProcessing.jsx';
+import Waybill             from '../pages/dashboard/operational/Waybill.jsx';
 
-// Sales Staff Pages
-import Customer from '../pages/dashboard/sales/Customer.jsx';
-import Invoice from '../pages/dashboard/sales/Invoice.jsx';
-import Payment from '../pages/dashboard/sales/Payment.jsx';
-import ProductRelease from '../pages/dashboard/sales/ProductRelease.jsx';
-import Receipt from '../pages/dashboard/sales/Receipt.jsx';
-import Refund from '../pages/dashboard/sales/Refund.jsx';
-import ReturnVerification from '../pages/dashboard/sales/ReturnVerification.jsx';
-import SalesOrders from '../pages/dashboard/sales/SalesOrders.jsx';
-import WalkInSales from '../pages/dashboard/sales/WalkInSales.jsx';
+// ── Warehouse Staff ───────────────────────────────────────────
+import Receiving           from '../pages/dashboard/warehouse/Receiving.jsx';
+import BarcodeScanner      from '../pages/dashboard/warehouse/BarcodeScanner.jsx';
+import InventoryCount      from '../pages/dashboard/warehouse/InventoryCount.jsx';
+import LocationLookup      from '../pages/dashboard/warehouse/LocationLookup.jsx';
+import Inspection          from '../pages/dashboard/warehouse/Inspection.jsx';
+import Picking             from '../pages/dashboard/warehouse/Picking.jsx';
+import FifoPicking         from '../pages/dashboard/warehouse/FifoPicking.jsx';
+import PickingDiscrepancy  from '../pages/dashboard/warehouse/PickingDiscrepancy.jsx';
+import Packing             from '../pages/dashboard/warehouse/Packing.jsx';
+import WaybillAttachment   from '../pages/dashboard/warehouse/WaybillAttachment.jsx';
+import EfficiencyReport    from '../pages/dashboard/warehouse/EfficiencyReport.jsx';
 
-// Warehouse Staff Pages
-import BarcodeScanner from '../pages/dashboard/warehouse/BarcodeScanner.jsx';
-import EfficiencyReport from '../pages/dashboard/warehouse/EfficiencyReport.jsx';
-import FifoPicking from '../pages/dashboard/warehouse/FifoPicking.jsx';
-import Inspection from '../pages/dashboard/warehouse/Inspection.jsx';
-import Packing from '../pages/dashboard/warehouse/Packing.jsx';
-import Picking from '../pages/dashboard/warehouse/Picking.jsx';
-import PickingDiscrepancy from '../pages/dashboard/warehouse/PickingDiscrepancy.jsx';
-import Receiving from '../pages/dashboard/warehouse/Receiving.jsx';
-import WaybillAttachment from '../pages/dashboard/warehouse/WaybillAttachment.jsx';
+// ── Sales Staff ───────────────────────────────────────────────
+import Customer            from '../pages/dashboard/sales/Customer.jsx';
+import SalesOrders         from '../pages/dashboard/sales/SalesOrders.jsx';
+import WalkInSales         from '../pages/dashboard/sales/WalkInSales.jsx';
+import InventoryLookup     from '../pages/dashboard/sales/InventoryLookup.jsx';
+import Receipt             from '../pages/dashboard/sales/Receipt.jsx';
+import ReturnVerification  from '../pages/dashboard/sales/ReturnVerification.jsx';
+import Invoice             from '../pages/dashboard/sales/Invoice.jsx';
+import Payment             from '../pages/dashboard/sales/Payment.jsx';
+import ProductRelease      from '../pages/dashboard/sales/ProductRelease.jsx';
+import Refund              from '../pages/dashboard/sales/Refund.jsx';
 
-// Shared Pages
-import IncomingShipments from '../pages/dashboard/shared/IncomingShipments.jsx';
-import WarehouseLocations from '../pages/dashboard/shared/WarehouseLocations.jsx';
-import Returns from '../pages/dashboard/shared/Returns.jsx';
-import Orders from '../pages/dashboard/shared/Orders.jsx';
-import Suppliers from '../pages/dashboard/shared/Suppliers.jsx';
+// ── Shared (multi-role) ───────────────────────────────────────
+import IncomingShipments   from '../pages/dashboard/shared/IncomingShipments.jsx';
+import WarehouseLocations  from '../pages/dashboard/shared/WarehouseLocations.jsx';
+import StockMovement       from '../pages/dashboard/shared/StockMovement.jsx';
+import Discrepancies       from '../pages/dashboard/shared/Discrepancies.jsx';
+import Orders              from '../pages/dashboard/shared/Orders.jsx';
+import Returns             from '../pages/dashboard/shared/Returns.jsx';
+import Suppliers           from '../pages/dashboard/shared/Suppliers.jsx';
+import Inventory           from '../pages/dashboard/admin/Inventory.jsx';
 
-import { ROLES } from '../utils/permissions.js';
+// ── Shorthand role constants ──────────────────────────────────
+const A  = ROLES.ADMIN;
+const M  = ROLES.MANAGER;
+const OP = ROLES.OPERATIONAL_STAFF;
+const WH = ROLES.WAREHOUSE_STAFF;
+const SA = ROLES.SALES_STAFF;
 
 export default function AppRoutes() {
   return (
     <Routes>
-      {/* Public Routes */}
-      <Route path="/" element={<Landing />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<SignUp />} />
+
+      {/* ── Public ─────────────────────────────────────────── */}
+      <Route path="/"               element={<Landing />} />
+      <Route path="/login"          element={<Login />} />
+      <Route path="/signup"         element={<SignUp />} />
       <Route path="/reset-password" element={<ResetPassword />} />
 
-      {/* Protected Dashboard Routes */}
+      {/* ── Protected dashboard ────────────────────────────── */}
       <Route element={<ProtectedRoute />}>
         <Route element={<DashboardLayout />}>
-          {/* Dashboard - All authenticated users */}
+
+          {/* Dashboard — all roles */}
           <Route path="/dashboard" element={<Dashboard />} />
 
-          {/* ============================================
-              OPERATIONS SECTION (Sidebar)
-              ============================================ */}
-          
-          {/* Receiving & Inspection - Warehouse Staff */}
-          <Route element={<RoleRoute allowed={[ROLES.WAREHOUSE_STAFF]} />}>
-            <Route path="/receiving" element={<Receiving />} />
+          {/* ══════════════════════════════════════════════════
+              ADMIN
+          ═══════════════════════════════════════════════════ */}
+          <Route element={<RoleRoute allowed={[A]} />}>
+            <Route path="/users"           element={<UserManagement />} />
+            <Route path="/roles"           element={<RoleManagement />} />
+            <Route path="/employees"       element={<EmployeeRegistration />} />
+            <Route path="/warehouses"      element={<Warehouses />} />
+            <Route path="/products"        element={<ProductManagement />} />
+            <Route path="/barcode/config"  element={<BarcodeConfig />} />
+            <Route path="/capacity-rules"  element={<CapacityRules />} />
+            <Route path="/audit-logs"      element={<AuditLogs />} />
+            <Route path="/settings"        element={<SystemSettings />} />
           </Route>
 
-          {/* Inventory - Admin can view/manage, others can view */}
-          <Route element={<RoleRoute allowed={[ROLES.ADMIN, ROLES.MANAGER, ROLES.OPERATIONAL_STAFF]} />}>
-            <Route path="/inventory" element={<Inventory />} />
+          {/* ══════════════════════════════════════════════════
+              MANAGER
+          ═══════════════════════════════════════════════════ */}
+          <Route element={<RoleRoute allowed={[M, A]} />}>
+            <Route path="/barcodes"                      element={<BarcodeMonitoring />} />
+            <Route path="/approvals"                     element={<ApprovalRequests />} />
+            <Route path="/reports"                       element={<AllReports />} />
+            <Route path="/reports/inventory"             element={<InventoryReports />} />
+            <Route path="/reports/sales"                 element={<SalesReports />} />
+            <Route path="/reports/stock-movement"        element={<StockMovementReports />} />
+            <Route path="/reports/discrepancies"         element={<DiscrepancyReports />} />
+            <Route path="/reports/defects"               element={<DefectReports />} />
+            <Route path="/reports/returns"               element={<ReturnReports />} />
+            <Route path="/reports/employee-efficiency"   element={<EmployeeEfficiency />} />
           </Route>
 
-          {/* Warehouse Locations - Multiple roles */}
-          <Route element={<RoleRoute allowed={[ROLES.ADMIN, ROLES.MANAGER, ROLES.OPERATIONAL_STAFF, ROLES.WAREHOUSE_STAFF]} />}>
-            <Route path="/warehouse" element={<WarehouseLocations />} />
+          {/* ══════════════════════════════════════════════════
+              OPERATIONAL STAFF
+          ═══════════════════════════════════════════════════ */}
+          <Route element={<RoleRoute allowed={[OP, A]} />}>
+            <Route path="/shipments/documents"  element={<ShipmentDocuments />} />
+            <Route path="/shipments/schedule"   element={<ShipmentSchedule />} />
+            <Route path="/shipments/register"   element={<ShipmentRegistration />} />
+            <Route path="/products/list"        element={<ProductsList />} />
+            <Route path="/products/register"    element={<ProductRegistration />} />
+            <Route path="/expected-inventory"   element={<ExpectedInventory />} />
+            <Route path="/barcode/prepare"      element={<BarcodePreparation />} />
+            <Route path="/barcode/generate"     element={<BarcodeGeneration />} />
+            <Route path="/batches"              element={<BatchManagement />} />
+            <Route path="/inventory/register"   element={<InventoryRegistration />} />
+            <Route path="/inventory/update"     element={<InventoryUpdate />} />
+            <Route path="/packing-slip"         element={<PackingSlip />} />
+            <Route path="/returns/process"      element={<ReturnProcessing />} />
+            <Route path="/waybill"              element={<Waybill />} />
           </Route>
 
-          {/* Orders - Operational & Sales */}
-          <Route element={<RoleRoute allowed={[ROLES.OPERATIONAL_STAFF, ROLES.SALES_STAFF, ROLES.MANAGER]} />}>
-            <Route path="/orders" element={<Orders />} />
+          {/* ══════════════════════════════════════════════════
+              WAREHOUSE STAFF
+          ═══════════════════════════════════════════════════ */}
+          <Route element={<RoleRoute allowed={[WH, M, A]} />}>
+            <Route path="/receiving"           element={<Receiving />} />
+            <Route path="/inspection"          element={<Inspection />} />
+            <Route path="/packing"             element={<Packing />} />
+            <Route path="/picking/fifo"        element={<FifoPicking />} />
+            <Route path="/picking/discrepancy" element={<PickingDiscrepancy />} />
+            <Route path="/waybill/attach"      element={<WaybillAttachment />} />
+            <Route path="/warehouse/efficiency-report" element={<EfficiencyReport />} />
           </Route>
 
-          {/* Picking & Packing - Warehouse Staff */}
-          <Route element={<RoleRoute allowed={[ROLES.WAREHOUSE_STAFF]} />}>
-            <Route path="/picking" element={<Picking />} />
+          <Route element={<RoleRoute allowed={[WH, A]} />}>
+            <Route path="/inventory/count"  element={<InventoryCount />} />
+            <Route path="/location-lookup"  element={<LocationLookup />} />
           </Route>
 
-          {/* Returns - Multiple roles */}
-          <Route element={<RoleRoute allowed={[ROLES.OPERATIONAL_STAFF, ROLES.SALES_STAFF, ROLES.WAREHOUSE_STAFF]} />}>
-            <Route path="/returns" element={<Returns />} />
+          {/* ══════════════════════════════════════════════════
+              SALES STAFF
+          ═══════════════════════════════════════════════════ */}
+          <Route element={<RoleRoute allowed={[SA, M, A]} />}>
+            <Route path="/customers"         element={<Customer />} />
+            <Route path="/sales/orders"      element={<SalesOrders />} />
+            <Route path="/sales/walk-in"     element={<WalkInSales />} />
+            <Route path="/inventory/lookup"  element={<InventoryLookup />} />
+            <Route path="/receipts"          element={<Receipt />} />
+            <Route path="/returns/verify"    element={<ReturnVerification />} />
+            <Route path="/invoices"          element={<Invoice />} />
+            <Route path="/payments"          element={<Payment />} />
+            <Route path="/product-release"   element={<ProductRelease />} />
+            <Route path="/refunds"           element={<Refund />} />
           </Route>
 
-          {/* ============================================
-              REPORTS SECTION (Sidebar)
-              ============================================ */}
-          
-          <Route element={<RoleRoute allowed={[ROLES.MANAGER, ROLES.ADMIN]} />}>
-            <Route path="/reports" element={<AllReports />} />
-            <Route path="/reports/discrepancy" element={<DiscrepancyReports />} />
-            <Route path="/reports/defects" element={<DefectReports />} />
-          </Route>
+          {/* ══════════════════════════════════════════════════
+              SHARED — multiple roles per document permission matrix
+          ═══════════════════════════════════════════════════ */}
 
-          {/* ============================================
-              MANAGEMENT SECTION (Sidebar)
-              ============================================ */}
-          
-          {/* Users & Employees - Admin only */}
-          <Route element={<RoleRoute allowed={[ROLES.ADMIN]} />}>
-            <Route path="/users" element={<UserManagement />} />
-          </Route>
-
-          {/* Suppliers - Admin, Manager, Operational */}
-          <Route element={<RoleRoute allowed={[ROLES.ADMIN, ROLES.MANAGER, ROLES.OPERATIONAL_STAFF]} />}>
-            <Route path="/suppliers" element={<Suppliers />} />
-          </Route>
-
-          {/* Settings - Admin only */}
-          <Route element={<RoleRoute allowed={[ROLES.ADMIN]} />}>
-            <Route path="/settings" element={<SystemSettings />} />
-          </Route>
-
-          {/* ============================================
-              ADDITIONAL OPERATIONAL PAGES
-              ============================================ */}
-          
-          <Route element={<RoleRoute allowed={[ROLES.OPERATIONAL_STAFF, ROLES.WAREHOUSE_STAFF]} />}>
+          {/* Incoming Shipments: Manager(view) | Operational(full) | Warehouse(view) */}
+          <Route element={<RoleRoute allowed={[M, OP, WH, A]} />}>
             <Route path="/shipments/incoming" element={<IncomingShipments />} />
           </Route>
 
-          <Route element={<RoleRoute allowed={[ROLES.OPERATIONAL_STAFF]} />}>
-            <Route path="/barcode/generate" element={<BarcodeGeneration />} />
-            <Route path="/batches" element={<BatchManagement />} />
-            <Route path="/inventory/register" element={<InventoryRegistration />} />
-            <Route path="/inventory/update" element={<InventoryUpdate />} />
-            <Route path="/packing-slip" element={<PackingSlip />} />
-            <Route path="/products/register" element={<ProductRegistration />} />
-            <Route path="/returns/process" element={<ReturnProcessing />} />
-            <Route path="/shipments/register" element={<ShipmentRegistration />} />
-            <Route path="/waybill" element={<Waybill />} />
+          {/* Inventory: Admin(full) | Manager(view) | Warehouse(view) */}
+          <Route element={<RoleRoute allowed={[A, M, WH]} />}>
+            <Route path="/inventory" element={<Inventory />} />
           </Route>
 
-          <Route element={<RoleRoute allowed={[ROLES.WAREHOUSE_STAFF]} />}>
+          {/* Warehouse / Storage Locations: Admin | Manager | Warehouse */}
+          <Route element={<RoleRoute allowed={[A, M, WH]} />}>
+            <Route path="/warehouse" element={<WarehouseLocations />} />
+          </Route>
+
+          {/* Stock Movement: Manager(approve) | Warehouse(full) */}
+          <Route element={<RoleRoute allowed={[M, WH, A]} />}>
+            <Route path="/stock-movement" element={<StockMovement />} />
+          </Route>
+
+          {/* Discrepancies: Manager(approve) | Warehouse(create) | Operational(create) */}
+          <Route element={<RoleRoute allowed={[M, WH, OP, A]} />}>
+            <Route path="/discrepancies" element={<Discrepancies />} />
+          </Route>
+
+          {/* Picking: Warehouse Staff (physical) | Sales Staff (monitoring) */}
+          <Route element={<RoleRoute allowed={[WH, SA, M, A]} />}>
+            <Route path="/picking" element={<Picking />} />
+          </Route>
+
+          {/* Orders: Manager(view) | Operational(view) | Sales(full) */}
+          <Route element={<RoleRoute allowed={[M, OP, SA, A]} />}>
+            <Route path="/orders" element={<Orders />} />
+          </Route>
+
+          {/* Returns: Manager(approve) | Warehouse(inspect) | Sales(create) */}
+          <Route element={<RoleRoute allowed={[M, WH, SA, A]} />}>
+            <Route path="/returns" element={<Returns />} />
+          </Route>
+
+          {/* Barcode Scanner: Warehouse(full) | Sales(verify) */}
+          <Route element={<RoleRoute allowed={[WH, SA, A]} />}>
             <Route path="/barcode/scan" element={<BarcodeScanner />} />
-            <Route path="/inspection" element={<Inspection />} />
-            <Route path="/packing" element={<Packing />} />
-            <Route path="/picking/discrepancy" element={<PickingDiscrepancy />} />
-            <Route path="/picking/fifo" element={<FifoPicking />} />
-            <Route path="/warehouse/efficiency-report" element={<EfficiencyReport />} />
-            <Route path="/waybill/attach" element={<WaybillAttachment />} />
           </Route>
 
-          {/* ============================================
-              ADMIN SPECIFIC
-              ============================================ */}
-          
-          <Route element={<RoleRoute allowed={[ROLES.ADMIN]} />}>
-            <Route path="/audit-logs" element={<AuditLogs />} />
-            <Route path="/products" element={<ProductManagement />} />
-            <Route path="/roles" element={<RoleManagement />} />
+          {/* Suppliers: Admin(full) | Manager(full) | Operational(full) | Sales/Warehouse(view) */}
+          <Route element={<RoleRoute allowed={[A, M, OP, WH, SA]} />}>
+            <Route path="/suppliers" element={<Suppliers />} />
           </Route>
 
-          {/* ============================================
-              MANAGER SPECIFIC (Additional Reports)
-              ============================================ */}
-          
-          <Route element={<RoleRoute allowed={[ROLES.MANAGER, ROLES.ADMIN]} />}>
-            <Route path="/approvals" element={<ApprovalRequests />} />
-            <Route path="/reports/employee-efficiency" element={<EmployeeEfficiency />} />
-            <Route path="/reports/inventory" element={<InventoryReports />} />
-            <Route path="/reports/refunds" element={<RefundReports />} />
-            <Route path="/reports/returns" element={<ReturnReports />} />
-            <Route path="/reports/sales" element={<SalesReports />} />
-            <Route path="/reports/stock-movement" element={<StockMovementReports />} />
-          </Route>
-
-          {/* ============================================
-              SALES STAFF SPECIFIC
-              ============================================ */}
-          
-          <Route element={<RoleRoute allowed={[ROLES.SALES_STAFF]} />}>
-            <Route path="/customers" element={<Customer />} />
-            <Route path="/invoices" element={<Invoice />} />
-            <Route path="/payments" element={<Payment />} />
-            <Route path="/product-release" element={<ProductRelease />} />
-            <Route path="/receipts" element={<Receipt />} />
-            <Route path="/refunds" element={<Refund />} />
-            <Route path="/returns/verify" element={<ReturnVerification />} />
-            <Route path="/sales/orders" element={<SalesOrders />} />
-            <Route path="/sales/walk-in" element={<WalkInSales />} />
-          </Route>
         </Route>
       </Route>
 

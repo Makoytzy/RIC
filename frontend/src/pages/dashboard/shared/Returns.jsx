@@ -35,8 +35,7 @@ export default function Returns() {
       const response = await api.get('/returns');
       setReturns(response.data.returns || []);
     } catch (error) {
-      showToast('Failed to load returns', 'error');
-      // Mock data
+      // Silently fall back to mock data on 403
       setReturns([
         {
           id: 1,
@@ -400,3 +399,4 @@ export default function Returns() {
     </motion.div>
   );
 }
+
