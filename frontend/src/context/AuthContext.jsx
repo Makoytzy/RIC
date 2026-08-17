@@ -18,24 +18,22 @@ export function AuthProvider({ children }) {
 
   // ============================================================
   // LOAD CURRENT USER PROFILE
+  // Always pass the access token directly to avoid race conditions
+  // where getSession() could return a stale/different session.
   // ============================================================
 
-  const loadProfile = useCallback(async () => {
+  const loadProfile = useCallback(async (accessToken) => {
     try {
       const {
         user: profileUser,
         roles: profileRoles,
-      } = await authService.fetchMe();
+      } = await authService.fetchMe(accessToken);
 
       setUser(profileUser);
       setRoles(profileRoles || []);
 
     } catch (error) {
-      console.error(
-        'Failed to load profile:',
-        error
-      );
-
+      console.error('Failed to load profile:', error);
       setUser(null);
       setRoles([]);
     }
@@ -56,80 +54,66 @@ export function AuthProvider({ children }) {
           error,
         } = await supabase.auth.getSession();
 
-
         if (error) {
-          console.error(
-            'Failed to get session:',
-            error
-          );
+          console.error('Failed to get session:', error);
         }
 
+        if (!mounted) return;
 
-        if (!mounted) {
-          return;
-        }
-
-
-        if (session) {
-          await loadProfile();
+        if (session?.access_token) {
+          // Pass the token directly — no risk of stale session
+          await loadProfile(session.access_token);
         } else {
           setUser(null);
           setRoles([]);
         }
 
       } catch (error) {
-        console.error(
-          'Auth initialization error:',
-          error
-        );
-
+        console.error('Auth initialization error:', error);
         if (mounted) {
           setUser(null);
           setRoles([]);
         }
-
       } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+        if (mounted) setLoading(false);
       }
     };
 
-
     init();
-
 
     // ==========================================================
     // LISTEN FOR AUTH CHANGES
+    // Only handle TOKEN_REFRESHED and SIGNED_OUT here.
+    // SIGNED_IN is handled directly inside signIn() which already
+    // has the correct token — letting onAuthStateChange also call
+    // loadProfile() causes a race condition with stale sessions.
     // ==========================================================
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth event:', event);
 
-        console.log(
-          'Auth event:',
-          event
-        );
+        if (!mounted) return;
 
-
-        if (!mounted) {
+        if (event === 'SIGNED_OUT' || !session) {
+          setUser(null);
+          setRoles([]);
+          if (mounted) setLoading(false);
           return;
         }
 
-
-        if (session) {
-          await loadProfile();
-        } else {
-          setUser(null);
-          setRoles([]);
+        if (event === 'TOKEN_REFRESHED' && session?.access_token) {
+          // Silently refresh profile with the new token
+          await loadProfile(session.access_token);
         }
 
+        // SIGNED_IN is intentionally NOT handled here.
+        // signIn() sets user/roles directly from the backend response,
+        // which already contains the correct user data.
 
-        if (mounted) {
-          setLoading(false);
-        }
+        if (mounted) setLoading(false);
       }
     );
 
@@ -150,40 +134,31 @@ export function AuthProvider({ children }) {
   const signIn = useCallback(
     async ({ email, password }) => {
 
-      const result = await authService.signIn({
-        email,
-        password,
-      });
-
+      const result = await authService.signIn({ email, password });
 
       if (result.session) {
-
-        const { error } =
-          await supabase.auth.setSession({
-            access_token:
-              result.session.access_token,
-
-            refresh_token:
-              result.session.refresh_token,
-          });
-
-
-        if (error) {
-          throw error;
-        }
+        // Store session in Supabase client (enables token refresh, persistence)
+        const { error } = await supabase.auth.setSession({
+          access_token:  result.session.access_token,
+          refresh_token: result.session.refresh_token,
+        });
+        if (error) throw error;
       }
 
-
-      setUser(result.user);
-
-      setRoles(
-        result.roles || []
-      );
-
+      // Use the token from the signin response directly — this guarantees
+      // we fetch the profile for the user who just signed in, not whoever
+      // was previously in the Supabase client session.
+      if (result.session?.access_token) {
+        await loadProfile(result.session.access_token);
+      } else {
+        // Fallback: use the data the backend returned directly
+        setUser(result.user);
+        setRoles(result.roles || []);
+      }
 
       return result;
     },
-    []
+    [loadProfile]
   );
 
 

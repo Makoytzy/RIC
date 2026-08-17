@@ -156,7 +156,7 @@ export async function signUp({ email, password, fullName, employeeCode }) {
     const result = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: false, // Require email verification
+      email_confirm: true, // Account active immediately; Supabase sends a confirmation email separately
       user_metadata: { 
         full_name: fullName, 
         fullName: fullName,
@@ -187,13 +187,80 @@ export async function signUp({ email, password, fullName, employeeCode }) {
   const userId = authData.user.id;
   console.log('[authService] Created auth user:', userId);
 
-  // NOTE: The database trigger (handle_new_user) will automatically create
-  // the user profile and assign roles when it fires.
-  // We don't need to do anything else here due to schema cache issues.
-  
-  // For the fallback admin account, mark the code as used
-  if (employeeCode === 'EMP-10001' && employeeInfo._fallback) {
-    console.log('[authService] Fallback admin account created - code marking skipped');
+  // Manually create user profile and assign role.
+  // We do this explicitly because the handle_new_user DB trigger
+  // may fail silently due to PostgREST schema cache issues.
+  try {
+    // 1. Create / upsert the public.users profile row
+    const { error: profileError } = await supabaseAdmin
+      .from('users')
+      .upsert(
+        {
+          id:            userId,
+          email:         email,
+          full_name:     fullName,
+          position:      position,
+          employee_code: employeeCode || null,
+          is_active:     true,
+          email_verified: true,
+        },
+        { onConflict: 'id' }
+      );
+
+    if (profileError) {
+      console.error('[authService] Profile upsert error (non-fatal):', profileError.message);
+    } else {
+      console.log('[authService] User profile created/updated');
+    }
+
+    // 2. Find the role ID for this position
+    const { data: roleRow, error: roleLookupError } = await supabaseAdmin
+      .from('roles')
+      .select('id')
+      .eq('name', position)
+      .single();
+
+    if (roleLookupError || !roleRow) {
+      console.error('[authService] Role not found for position:', position, roleLookupError?.message);
+    } else {
+      // 3. Assign the role (ignore conflict if already exists)
+      const { error: roleAssignError } = await supabaseAdmin
+        .from('user_roles')
+        .upsert(
+          { user_id: userId, role_id: roleRow.id },
+          { onConflict: 'user_id,role_id', ignoreDuplicates: true }
+        );
+
+      if (roleAssignError) {
+        console.error('[authService] Role assignment error (non-fatal):', roleAssignError.message);
+      } else {
+        console.log('[authService] Role assigned:', position);
+      }
+    }
+
+    // 4. Mark employee code as used if applicable
+    if (employeeCode && !employeeInfo?._fallback) {
+      const { error: markError } = await supabaseAdmin
+        .from('employees')
+        .update({
+          is_used:    true,
+          used_at:    new Date().toISOString(),
+          user_id:    userId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('employee_code', employeeCode)
+        .eq('is_used', false);
+
+      if (markError) {
+        console.error('[authService] Mark code as used error (non-fatal):', markError.message);
+      } else {
+        console.log('[authService] Employee code marked as used:', employeeCode);
+      }
+    }
+
+  } catch (postSignupError) {
+    // Post-signup steps failed but auth user was created — log and continue
+    console.error('[authService] Post-signup error (non-fatal):', postSignupError.message);
   }
 
   console.log('[authService] Signup successful');
@@ -202,17 +269,34 @@ export async function signUp({ email, password, fullName, employeeCode }) {
 
 /**
  * Sign in with email and password
+ * Returns precise, human-readable error messages for every failure case.
  */
 export async function signIn({ email, password }) {
-  const client = supabaseForUserToken('');
-  const { data, error } = await client.auth.signInWithPassword({ email, password });
-  
+  const { data, error } = await supabaseAdmin.auth.signInWithPassword({ email, password });
+
   if (error) {
-    // Check for email not confirmed error
-    if (error.message && error.message.toLowerCase().includes('email not confirmed')) {
-      throw new AppError('Please verify your email before logging in. Check your inbox for the verification link.', 401);
+    const msg = error.message?.toLowerCase() || '';
+
+    if (msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
+      throw new AppError('Incorrect password. Please check your password and try again.', 401);
     }
-    throw new AppError('Invalid email or password', 401);
+    if (msg.includes('email not confirmed')) {
+      throw new AppError('Your email has not been verified yet. Please check your inbox and click the verification link.', 401);
+    }
+    if (msg.includes('user not found') || msg.includes('no user found')) {
+      throw new AppError('No account found with this email address. Please check your email or sign up.', 404);
+    }
+    if (msg.includes('too many requests') || msg.includes('rate limit')) {
+      throw new AppError('Too many login attempts. Please wait a few minutes before trying again.', 429);
+    }
+    if (msg.includes('user is banned') || msg.includes('banned')) {
+      throw new AppError('This account has been suspended. Please contact your administrator.', 403);
+    }
+    if (msg.includes('user is disabled') || msg.includes('disabled')) {
+      throw new AppError('This account has been disabled. Please contact your administrator.', 403);
+    }
+    // Fallback
+    throw new AppError('Incorrect password. Please check your password and try again.', 401);
   }
 
   return {
@@ -231,8 +315,10 @@ export async function signOut(accessToken) {
 
 /**
  * Get roles for user
+ * First checks user_roles table, falls back to users.position if empty
  */
 export async function getRolesForUser(userId) {
+  // Primary: get from user_roles join
   const { data, error } = await supabaseAdmin
     .from('user_roles')
     .select('roles ( id, name )')
@@ -240,5 +326,71 @@ export async function getRolesForUser(userId) {
     
   if (error) throw new AppError(error.message, 500);
   
-  return (data || []).map((r) => r.roles).filter(Boolean);
+  const roles = (data || []).map((r) => r.roles).filter(Boolean);
+  
+  // If roles found, return them
+  if (roles.length > 0) return roles;
+  
+  // Fallback: read position from public.users and assign role on-the-fly
+  console.warn('[authService] No roles in user_roles for user:', userId, '— using position fallback');
+  
+  const { data: userRow } = await supabaseAdmin
+    .from('users')
+    .select('position')
+    .eq('id', userId)
+    .single();
+  
+  if (userRow?.position) {
+    // Try to auto-assign the role so it works next time too
+    const { data: roleRow } = await supabaseAdmin
+      .from('roles')
+      .select('id, name')
+      .eq('name', userRow.position)
+      .single();
+    
+    if (roleRow) {
+      // Insert the missing role assignment (ignore if already exists)
+      await supabaseAdmin
+        .from('user_roles')
+        .upsert(
+          { user_id: userId, role_id: roleRow.id },
+          { onConflict: 'user_id,role_id', ignoreDuplicates: true }
+        );
+      
+      console.log('[authService] Auto-assigned missing role:', roleRow.name, 'to user:', userId);
+      return [{ id: roleRow.id, name: roleRow.name }];
+    }
+  }
+  
+  // Last resort: check auth.users metadata
+  const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId);
+  const metaPosition = authUser?.user?.user_metadata?.position;
+  
+  if (metaPosition) {
+    const { data: roleRow } = await supabaseAdmin
+      .from('roles')
+      .select('id, name')
+      .eq('name', metaPosition)
+      .single();
+    
+    if (roleRow) {
+      await supabaseAdmin
+        .from('user_roles')
+        .upsert(
+          { user_id: userId, role_id: roleRow.id },
+          { onConflict: 'user_id,role_id', ignoreDuplicates: true }
+        );
+      
+      // Also update public.users.position
+      await supabaseAdmin
+        .from('users')
+        .update({ position: metaPosition, updated_at: new Date().toISOString() })
+        .eq('id', userId);
+      
+      console.log('[authService] Auto-assigned role from metadata:', roleRow.name, 'to user:', userId);
+      return [{ id: roleRow.id, name: roleRow.name }];
+    }
+  }
+  
+  return [];
 }

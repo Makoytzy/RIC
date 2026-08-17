@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../config/supabase.js';
+import { getRolesForUser } from '../services/authService.js';
 
 /**
  * Verifies the Bearer token issued by Supabase Auth, then loads the user's
@@ -18,18 +19,12 @@ export async function authMiddleware(req, res, next) {
       return res.status(401).json({ error: 'Invalid or expired session' });
     }
 
-    const { data: roleRows, error: roleError } = await supabaseAdmin
-      .from('user_roles')
-      .select('roles ( id, name )')
-      .eq('user_id', data.user.id);
+    // Use getRolesForUser which has fallback logic for missing roles
+    const roleObjects = await getRolesForUser(data.user.id);
 
-    if (roleError) {
-      return res.status(500).json({ error: 'Failed to resolve user roles' });
-    }
-
-    req.user = data.user;
+    req.user        = data.user;
     req.accessToken = token;
-    req.roles = (roleRows || []).map((r) => r.roles?.name).filter(Boolean);
+    req.roles       = roleObjects.map((r) => r.name).filter(Boolean);
 
     return next();
   } catch (err) {

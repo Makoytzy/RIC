@@ -1,4 +1,5 @@
 import * as authService from '../services/authService.js';
+import { supabaseAdmin } from '../config/supabase.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -136,7 +137,47 @@ export async function signOut(req, res, next) {
 
 /**
  * Get Current User Endpoint
+ * Returns merged auth user + public.users profile for accurate display
  */
 export async function me(req, res) {
-  return res.json({ user: req.user, roles: req.roles });
+  try {
+    // req.user is the Supabase auth user (from JWT verification in authMiddleware)
+    const authUser = req.user;
+
+    // Also fetch the public.users profile row for accurate display data
+    const { data: profileRow, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('id, email, full_name, position, is_active, employee_code, created_at, updated_at')
+      .eq('id', authUser.id)
+      .single();
+
+    if (profileError) {
+      // If profile row doesn't exist yet (trigger may not have run), fall back to auth user only
+      console.warn('[me] public.users row not found for user:', authUser.id, profileError.message);
+      return res.json({ user: authUser, roles: req.roles });
+    }
+
+    // Merge: auth user fields + public.users fields
+    // public.users.full_name and position take precedence over user_metadata
+    const mergedUser = {
+      ...authUser,
+      // Override with accurate public.users data
+      full_name: profileRow.full_name || authUser.user_metadata?.full_name || authUser.email,
+      position:  profileRow.position  || authUser.user_metadata?.position  || '',
+      is_active: profileRow.is_active,
+      employee_code: profileRow.employee_code,
+      // Keep these accessible on user_metadata too for Header.jsx compatibility
+      user_metadata: {
+        ...authUser.user_metadata,
+        full_name: profileRow.full_name || authUser.user_metadata?.full_name || authUser.email,
+        position:  profileRow.position  || authUser.user_metadata?.position  || '',
+      }
+    };
+
+    return res.json({ user: mergedUser, roles: req.roles });
+  } catch (err) {
+    console.error('[me] Error fetching profile:', err);
+    // Fallback to auth user on error
+    return res.json({ user: req.user, roles: req.roles });
+  }
 }

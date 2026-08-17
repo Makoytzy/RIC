@@ -10,15 +10,24 @@ import {
   Settings,
   LogOut,
 } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth.js';
 
 export default function Header({ onMenuClick, pageTitle = 'Dashboard' }) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  // Mock user data - replace with actual auth context
+  const { user: authUser, roles, signOut } = useAuth();
+
+  // Build display values from the real authenticated user
   const user = {
-    name: 'Maria Santos',
-    role: 'Operational Staff',
+    name:
+      authUser?.full_name ||
+      authUser?.user_metadata?.full_name ||
+      authUser?.email ||
+      'Unknown User',
+    role: roles.length > 0
+      ? roles[0].replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+      : 'No role assigned',
     avatar: null,
   };
 
@@ -168,7 +177,9 @@ export default function Header({ onMenuClick, pageTitle = 'Dashboard' }) {
                       </button>
                     </div>
                     <div className="border-t border-slate-200 py-2">
-                      <button className="flex items-center gap-3 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                      <button
+                        onClick={() => { setShowUserMenu(false); signOut(); }}
+                        className="flex items-center gap-3 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
                         <LogOut size={16} />
                         Logout
                       </button>
