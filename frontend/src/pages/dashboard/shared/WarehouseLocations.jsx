@@ -51,14 +51,18 @@ export default function WarehouseLocations() {
     
     try {
       const response = await api.get('/warehouse/locations');
-      setLocations(response.data.locations || []);
+      const fetched = response.data.locations || [];
+      // If the backend returned real rows, use them; otherwise keep mock data
+      setLocations(fetched.length > 0 ? fetched : mockData);
     } catch (error) {
-      console.error('Error loading locations:', error);
-      // Always fall back to mock data — covers 403, 404, network errors, etc.
+      // Expected during development when the backend table/server isn't ready yet.
+      // Fall back to mock data so the UI remains usable.
+      console.warn('Warehouse locations API unavailable, using mock data:', error.message);
       setLocations(mockData);
     } finally {
       setLoading(false);
     }
+
   };
 
   const handleSubmit = async (e) => {

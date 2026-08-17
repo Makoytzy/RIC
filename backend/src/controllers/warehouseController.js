@@ -104,10 +104,40 @@ export const getLocations = async (req, res) => {
 
     const { data, error } = await query;
 
-    if (error) throw error;
+    if (error) {
+      // If the table simply doesn't exist yet (migration not run),
+      // return an empty list rather than crashing with a 500.
+      const isTableMissing =
+        error.code === '42P01' ||                          // PostgreSQL: undefined_table
+        error.message?.toLowerCase().includes('does not exist') ||
+        error.message?.toLowerCase().includes('relation');
+
+      if (isTableMissing) {
+        logger.warn('warehouse_locations table not found — migration 008 may not have been run yet');
+        return res.json({ locations: [], message: 'Locations table not configured yet' });
+      }
+
+      throw error;
+    }
+
+    // Map snake_case DB columns → camelCase for the frontend
+    const locations = (data || []).map((row) => ({
+      id:           row.id,
+      code:         row.code,
+      name:         row.name,
+      zone:         row.zone,
+      aisle:        row.aisle,
+      rack:         row.rack,
+      shelf:        row.shelf,
+      capacity:     row.capacity,
+      currentStock: row.current_stock,   // ← snake_case → camelCase
+      status:       row.status,
+      createdAt:    row.created_at,
+      updatedAt:    row.updated_at,
+    }));
 
     res.json({
-      locations: data || [],
+      locations,
       message: 'Locations retrieved successfully'
     });
   } catch (error) {
@@ -116,18 +146,23 @@ export const getLocations = async (req, res) => {
   }
 };
 
+
 export const createLocation = async (req, res) => {
   try {
-    const locationData = req.body;
+    const { currentStock, ...rest } = req.body;
     const userId = req.user.id;
+
+    // Translate camelCase → snake_case for DB insert
+    const dbPayload = {
+      ...rest,
+      ...(currentStock !== undefined && { current_stock: Number(currentStock) }),
+      created_by: userId,
+      created_at: new Date().toISOString(),
+    };
 
     const { data, error } = await supabase
       .from('warehouse_locations')
-      .insert({
-        ...locationData,
-        created_by: userId,
-        created_at: new Date().toISOString()
-      })
+      .insert(dbPayload)
       .select()
       .single();
 
@@ -139,12 +174,12 @@ export const createLocation = async (req, res) => {
       action: 'location_created',
       entity_type: 'warehouse_location',
       entity_id: data.id,
-      details: locationData
+      details: req.body,
     });
 
     res.status(201).json({
-      location: data,
-      message: 'Location created successfully'
+      location: { ...data, currentStock: data.current_stock },
+      message: 'Location created successfully',
     });
   } catch (error) {
     logger.error('Error creating location:', error);
@@ -155,16 +190,20 @@ export const createLocation = async (req, res) => {
 export const updateLocation = async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const { currentStock, ...rest } = req.body;
     const userId = req.user.id;
+
+    // Translate camelCase → snake_case for DB update
+    const dbPayload = {
+      ...rest,
+      ...(currentStock !== undefined && { current_stock: Number(currentStock) }),
+      updated_by: userId,
+      updated_at: new Date().toISOString(),
+    };
 
     const { data, error } = await supabase
       .from('warehouse_locations')
-      .update({
-        ...updateData,
-        updated_by: userId,
-        updated_at: new Date().toISOString()
-      })
+      .update(dbPayload)
       .eq('id', id)
       .select()
       .single();
@@ -177,12 +216,12 @@ export const updateLocation = async (req, res) => {
       action: 'location_updated',
       entity_type: 'warehouse_location',
       entity_id: id,
-      details: updateData
+      details: req.body,
     });
 
     res.json({
-      location: data,
-      message: 'Location updated successfully'
+      location: { ...data, currentStock: data.current_stock },
+      message: 'Location updated successfully',
     });
   } catch (error) {
     logger.error('Error updating location:', error);
