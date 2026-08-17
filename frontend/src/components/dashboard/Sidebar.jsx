@@ -19,6 +19,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import logo from '../../Image/logo.jpg';
+import { useAuth } from '../../hooks/useAuth';
 
 const NAVIGATION = [
   {
@@ -26,18 +27,55 @@ const NAVIGATION = [
     label: 'Dashboard',
     icon: LayoutDashboard,
     path: '/dashboard',
+    roles: ['admin', 'manager', 'operational_staff', 'warehouse_staff', 'sales_staff'],
   },
   {
     id: 'operations',
     label: 'OPERATIONS',
     type: 'section',
     items: [
-      { id: 'receiving', label: 'Receiving & Inspection', icon: PackageCheck, path: '/receiving' },
-      { id: 'inventory', label: 'Inventory', icon: Boxes, path: '/inventory' },
-      { id: 'warehouse', label: 'Warehouse Locations', icon: Warehouse, path: '/warehouse' },
-      { id: 'orders', label: 'Orders', icon: ShoppingCart, path: '/orders' },
-      { id: 'picking', label: 'Picking & Packing', icon: ClipboardCheck, path: '/picking' },
-      { id: 'returns', label: 'Returns', icon: RotateCcw, path: '/returns' },
+      { 
+        id: 'receiving', 
+        label: 'Receiving & Inspection', 
+        icon: PackageCheck, 
+        path: '/receiving',
+        roles: ['warehouse_staff']
+      },
+      { 
+        id: 'inventory', 
+        label: 'Inventory', 
+        icon: Boxes, 
+        path: '/inventory',
+        roles: ['admin', 'manager', 'operational_staff']
+      },
+      { 
+        id: 'warehouse', 
+        label: 'Warehouse Locations', 
+        icon: Warehouse, 
+        path: '/warehouse',
+        roles: ['admin', 'manager', 'operational_staff', 'warehouse_staff']
+      },
+      { 
+        id: 'orders', 
+        label: 'Orders', 
+        icon: ShoppingCart, 
+        path: '/orders',
+        roles: ['operational_staff', 'sales_staff', 'manager']
+      },
+      { 
+        id: 'picking', 
+        label: 'Picking & Packing', 
+        icon: ClipboardCheck, 
+        path: '/picking',
+        roles: ['warehouse_staff']
+      },
+      { 
+        id: 'returns', 
+        label: 'Returns', 
+        icon: RotateCcw, 
+        path: '/returns',
+        roles: ['operational_staff', 'sales_staff', 'warehouse_staff']
+      },
     ],
   },
   {
@@ -45,9 +83,27 @@ const NAVIGATION = [
     label: 'REPORTS',
     type: 'section',
     items: [
-      { id: 'reports-main', label: 'All Reports', icon: BarChart3, path: '/reports' },
-      { id: 'discrepancy', label: 'Discrepancy Reports', icon: FileWarning, path: '/reports/discrepancy' },
-      { id: 'defects', label: 'Defect Reports', icon: AlertTriangle, path: '/reports/defects' },
+      { 
+        id: 'reports-main', 
+        label: 'All Reports', 
+        icon: BarChart3, 
+        path: '/reports',
+        roles: ['manager', 'admin']
+      },
+      { 
+        id: 'discrepancy', 
+        label: 'Discrepancy Reports', 
+        icon: FileWarning, 
+        path: '/reports/discrepancy',
+        roles: ['manager', 'admin']
+      },
+      { 
+        id: 'defects', 
+        label: 'Defect Reports', 
+        icon: AlertTriangle, 
+        path: '/reports/defects',
+        roles: ['manager', 'admin']
+      },
     ],
   },
   {
@@ -55,15 +111,34 @@ const NAVIGATION = [
     label: 'MANAGEMENT',
     type: 'section',
     items: [
-      { id: 'users', label: 'Users & Employees', icon: Users, path: '/users' },
-      { id: 'suppliers', label: 'Suppliers', icon: Truck, path: '/suppliers' },
-      { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
+      { 
+        id: 'users', 
+        label: 'Users & Employees', 
+        icon: Users, 
+        path: '/users',
+        roles: ['admin']
+      },
+      { 
+        id: 'suppliers', 
+        label: 'Suppliers', 
+        icon: Truck, 
+        path: '/suppliers',
+        roles: ['admin', 'manager', 'operational_staff']
+      },
+      { 
+        id: 'settings', 
+        label: 'Settings', 
+        icon: Settings, 
+        path: '/settings',
+        roles: ['admin']
+      },
     ],
   },
 ];
 
 export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation();
+  const { hasRole } = useAuth();
   const [expandedSections, setExpandedSections] = useState(['operations', 'reports', 'management']);
 
   const toggleSection = (sectionId) => {
@@ -75,6 +150,27 @@ export default function Sidebar({ isOpen, onClose }) {
   };
 
   const isActive = (path) => location.pathname === path;
+
+  // Filter navigation items based on user roles
+  const filterNavByRole = (items) => {
+    return items.filter(item => {
+      if (!item.roles) return true; // Show items without role restrictions
+      return item.roles.some(role => hasRole(role));
+    });
+  };
+
+  const filteredNavigation = NAVIGATION.map(item => {
+    if (item.type === 'section') {
+      const filteredItems = filterNavByRole(item.items);
+      // Only show section if it has visible items
+      return filteredItems.length > 0 ? { ...item, items: filteredItems } : null;
+    }
+    // Check if user has permission for top-level items
+    if (item.roles && !item.roles.some(role => hasRole(role))) {
+      return null;
+    }
+    return item;
+  }).filter(Boolean); // Remove null items
 
   return (
     <>
@@ -93,7 +189,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4 px-3">
-          {NAVIGATION.map((item) => {
+          {filteredNavigation.map((item) => {
             if (item.type === 'section') {
               const isExpanded = expandedSections.includes(item.id);
               return (
@@ -184,7 +280,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
               {/* Navigation - Same as desktop */}
               <nav className="py-4 px-3">
-                {NAVIGATION.map((item) => {
+                {filteredNavigation.map((item) => {
                   if (item.type === 'section') {
                     const isExpanded = expandedSections.includes(item.id);
                     return (

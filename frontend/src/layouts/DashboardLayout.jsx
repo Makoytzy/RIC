@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from '../components/dashboard/Sidebar';
 import Header from '../components/dashboard/Header';
+import ToastContainer from '../components/common/ToastContainer';
 
 /**
  * DashboardLayout
@@ -14,6 +15,9 @@ export default function DashboardLayout() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      {/* Toast Container - Global toast notifications */}
+      <ToastContainer />
+
       {/* Sidebar */}
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 

@@ -9,6 +9,10 @@ import { notFoundHandler, errorHandler } from './middleware/errorMiddleware.js';
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import roleRoutes from './routes/roleRoutes.js';
+import dashboardRoutes from './routes/dashboardRoutes.js';
+import warehouseRoutes from './routes/warehouseRoutes.js';
+import orderRoutes from './routes/orderRoutes.js';
+import supplierRoutes from './routes/supplierRoutes.js';
 
 const app = express();
 
@@ -19,17 +23,28 @@ app.use(morgan(env.nodeEnv === 'development' ? 'dev' : 'combined'));
 
 app.get('/health', (req, res) => res.json({ status: 'ok', env: env.nodeEnv }));
 
+// Authentication & Authorization
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/roles', roleRoutes);
 
-// Future modules plug in here, following the same pattern:
+// Dashboard
+app.use('/api/dashboard', dashboardRoutes);
+
+// Warehouse Operations
+app.use('/api/warehouse', warehouseRoutes);
+
+// Orders & Returns
+app.use('/api/orders', orderRoutes);
+app.use('/api/returns', orderRoutes); // Returns routes are in orderRoutes
+
+// Suppliers
+app.use('/api/suppliers', supplierRoutes);
+
+// Future modules to be implemented:
 // app.use('/api/products', productRoutes);
 // app.use('/api/inventory', inventoryRoutes);
-// app.use('/api/shipments', shipmentRoutes);
-// app.use('/api/orders', orderRoutes);
 // app.use('/api/sales', salesRoutes);
-// app.use('/api/returns', returnRoutes);
 // app.use('/api/reports', reportRoutes);
 
 app.use(notFoundHandler);

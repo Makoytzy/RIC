@@ -31,3 +31,6 @@ export async function authMiddleware(req, res, next) {
     return next(err);
   }
 }
+
+// Export as both names for compatibility
+export const authenticate = authMiddleware;

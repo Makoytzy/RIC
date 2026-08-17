@@ -16,3 +16,6 @@ export function requireRole(...allowedRoles) {
     return next();
   };
 }
+
+// Export as both names for compatibility
+export const authorize = requireRole;
