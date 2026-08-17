@@ -12,32 +12,32 @@ router.use(authenticate);
 // ORDER ROUTES
 // ============================================
 router.get('/',
-  authorize(['operational_staff', 'sales_staff', 'manager', 'admin']),
+  authorize('operational_staff', 'sales_staff', 'manager', 'admin'),
   orderController.getOrders
 );
 
 router.get('/:id',
-  authorize(['operational_staff', 'sales_staff', 'manager', 'admin']),
+  authorize('operational_staff', 'sales_staff', 'manager', 'admin'),
   orderController.getOrderById
 );
 
 router.post('/',
-  authorize(['operational_staff', 'sales_staff']),
+  authorize('operational_staff', 'sales_staff'),
   orderController.createOrder
 );
 
 router.put('/:id',
-  authorize(['operational_staff', 'sales_staff', 'manager']),
+  authorize('operational_staff', 'sales_staff', 'manager'),
   orderController.updateOrder
 );
 
 router.patch('/:id/status',
-  authorize(['operational_staff', 'manager']),
+  authorize('operational_staff', 'manager'),
   orderController.updateOrderStatus
 );
 
 router.delete('/:id',
-  authorize(['operational_staff', 'manager', 'admin']),
+  authorize('operational_staff', 'manager', 'admin'),
   orderController.deleteOrder
 );
 
@@ -45,17 +45,17 @@ router.delete('/:id',
 // RETURNS ROUTES
 // ============================================
 router.get('/returns',
-  authorize(['operational_staff', 'sales_staff', 'warehouse_staff', 'manager', 'admin']),
+  authorize('operational_staff', 'sales_staff', 'warehouse_staff', 'manager', 'admin'),
   orderController.getReturns
 );
 
 router.post('/returns',
-  authorize(['sales_staff', 'operational_staff']),
+  authorize('sales_staff', 'operational_staff'),
   orderController.createReturn
 );
 
 router.patch('/returns/:id/status',
-  authorize(['operational_staff', 'sales_staff', 'manager']),
+  authorize('operational_staff', 'sales_staff', 'manager'),
   orderController.updateReturnStatus
 );
 

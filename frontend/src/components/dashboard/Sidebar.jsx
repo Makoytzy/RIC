@@ -94,7 +94,7 @@ const NAVIGATION = [
         id: 'discrepancy', 
         label: 'Discrepancy Reports', 
         icon: FileWarning, 
-        path: '/reports/discrepancy',
+        path: '/reports/discrepancies',
         roles: ['manager', 'admin']
       },
       { 

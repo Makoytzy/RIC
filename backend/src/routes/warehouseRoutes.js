@@ -12,12 +12,12 @@ router.use(authenticate);
 // RECEIVING ROUTES
 // ============================================
 router.get('/receiving',
-  authorize(['warehouse_staff', 'manager', 'admin']),
+  authorize('warehouse_staff', 'manager', 'admin'),
   warehouseController.getReceivingShipments
 );
 
 router.post('/receiving/:id/receive',
-  authorize(['warehouse_staff']),
+  authorize('warehouse_staff'),
   warehouseController.receiveShipment
 );
 
@@ -25,22 +25,22 @@ router.post('/receiving/:id/receive',
 // WAREHOUSE LOCATIONS ROUTES
 // ============================================
 router.get('/locations',
-  authorize(['admin', 'manager', 'operational_staff', 'warehouse_staff', 'sales_staff']),
+  authorize('admin', 'manager', 'operational_staff', 'warehouse_staff', 'sales_staff'),
   warehouseController.getLocations
 );
 
 router.post('/locations',
-  authorize(['admin', 'manager', 'operational_staff']),
+  authorize('admin', 'manager', 'operational_staff'),
   warehouseController.createLocation
 );
 
 router.put('/locations/:id',
-  authorize(['admin', 'manager', 'operational_staff']),
+  authorize('admin', 'manager', 'operational_staff'),
   warehouseController.updateLocation
 );
 
 router.delete('/locations/:id',
-  authorize(['admin']),
+  authorize('admin'),
   warehouseController.deleteLocation
 );
 
@@ -48,12 +48,12 @@ router.delete('/locations/:id',
 // INSPECTION ROUTES
 // ============================================
 router.get('/inspection',
-  authorize(['warehouse_staff', 'manager', 'admin']),
+  authorize('warehouse_staff', 'manager', 'admin'),
   warehouseController.getInspectionQueue
 );
 
 router.post('/inspection/:id/complete',
-  authorize(['warehouse_staff']),
+  authorize('warehouse_staff'),
   warehouseController.completeInspection
 );
 
@@ -61,12 +61,12 @@ router.post('/inspection/:id/complete',
 // PICKING ROUTES
 // ============================================
 router.get('/picking',
-  authorize(['warehouse_staff', 'manager', 'admin']),
+  authorize('warehouse_staff', 'manager', 'admin'),
   warehouseController.getPickingTasks
 );
 
 router.post('/picking/:id/complete',
-  authorize(['warehouse_staff']),
+  authorize('warehouse_staff'),
   warehouseController.completePicking
 );
 
@@ -74,12 +74,12 @@ router.post('/picking/:id/complete',
 // PACKING ROUTES
 // ============================================
 router.get('/packing',
-  authorize(['warehouse_staff', 'manager', 'admin']),
+  authorize('warehouse_staff', 'manager', 'admin'),
   warehouseController.getPackingTasks
 );
 
 router.post('/packing/:id/complete',
-  authorize(['warehouse_staff']),
+  authorize('warehouse_staff'),
   warehouseController.completePacking
 );
 

@@ -9,27 +9,27 @@ const router = express.Router();
 router.use(authenticate);
 
 router.get('/',
-  authorize(['admin', 'manager', 'operational_staff', 'warehouse_staff', 'sales_staff']),
+  authorize('admin', 'manager', 'operational_staff', 'warehouse_staff', 'sales_staff'),
   supplierController.getSuppliers
 );
 
 router.get('/:id',
-  authorize(['admin', 'manager', 'operational_staff', 'warehouse_staff', 'sales_staff']),
+  authorize('admin', 'manager', 'operational_staff', 'warehouse_staff', 'sales_staff'),
   supplierController.getSupplierById
 );
 
 router.post('/',
-  authorize(['admin', 'manager', 'operational_staff']),
+  authorize('admin', 'manager', 'operational_staff'),
   supplierController.createSupplier
 );
 
 router.put('/:id',
-  authorize(['admin', 'manager', 'operational_staff']),
+  authorize('admin', 'manager', 'operational_staff'),
   supplierController.updateSupplier
 );
 
 router.delete('/:id',
-  authorize(['admin']),
+  authorize('admin'),
   supplierController.deleteSupplier
 );
 
