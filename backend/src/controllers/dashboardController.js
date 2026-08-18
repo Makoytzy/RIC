@@ -16,33 +16,37 @@ const supabase = createClient(
 // ============================================
 export const getAdminDashboard = async (req, res) => {
   try {
-    // Get user count
+    // Get user counts
     const { count: userCount } = await supabase
       .from('users')
       .select('*', { count: 'exact', head: true });
 
-    // Get inventory count
-    const { count: inventoryCount } = await supabase
-      .from('inventory')
+    const { count: activeUserCount } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true);
+
+    // Get products count
+    const { count: productCount } = await supabase
+      .from('products')
       .select('*', { count: 'exact', head: true });
 
     // Get low stock items
     const { count: lowStockCount } = await supabase
-      .from('inventory')
+      .from('products')
       .select('*', { count: 'exact', head: true })
-      .lt('current_stock', 'reorder_level');
+      .in('status', ['Low Stock', 'Critical Low', 'Out of Stock']);
+
+    // Get warehouses count
+    const { count: warehouseCount } = await supabase
+      .from('warehouses')
+      .select('*', { count: 'exact', head: true });
 
     // Get pending orders
     const { count: pendingOrders } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'pending');
-
-    // Get defective items
-    const { count: defectiveCount } = await supabase
-      .from('shipments')
-      .select('*', { count: 'exact', head: true })
-      .eq('quality_status', 'defective');
 
     // Get today's audit events
     const today = new Date();
@@ -62,13 +66,24 @@ export const getAdminDashboard = async (req, res) => {
     res.json({
       kpis: {
         totalUsers: userCount || 0,
-        totalInventory: inventoryCount || 0,
+        activeUsers: activeUserCount || 0,
+        totalProducts: productCount || 0,
+        totalWarehouses: warehouseCount || 0,
         lowStock: lowStockCount || 0,
         pendingOrders: pendingOrders || 0,
-        defectiveItems: defectiveCount || 0,
         auditEvents: auditCount || 0
       },
-      recentActivity: recentActivity || [],
+      recentActivity: (recentActivity || []).map(a => ({
+        id: a.id,
+        action: a.action,
+        user: a.users?.full_name || 'System Operator',
+        userEmail: a.users?.email || 'system@ric.com',
+        details: a.details || 'Event logged',
+        time: a.created_at ? new Date(a.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently',
+        created_at: a.created_at,
+        category: a.category || 'System',
+        severity: a.severity || 'info',
+      })),
       message: 'Admin dashboard data retrieved successfully'
     });
   } catch (error) {

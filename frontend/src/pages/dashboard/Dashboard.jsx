@@ -106,62 +106,15 @@ function AlertBanner({ items }) {
   );
 }
 
+import AdminDashboardView from './admin/AdminDashboardView.jsx';
+
 // ══════════════════════════════════════════════════════════════
 // ROLE DASHBOARDS
 // ══════════════════════════════════════════════════════════════
 
 // ── ADMIN ──────────────────────────────────────────────────────
 function AdminDashboard({ name }) {
-  return (
-    <>
-      <AlertBanner items={[
-        'System configuration pending: warehouse hierarchy not fully set up',
-        'New employee registration codes need to be generated',
-      ]} />
-
-      {/* KPIs — Document: Total Users, Active Users, Pending Registrations,
-                         Warehouses, Products, System Alerts */}
-      <Section title="System Overview" cols={3}>
-        <KpiCard icon={Users}          label="Total Users"              value="—" sub="Registered accounts"      variant="blue"   />
-        <KpiCard icon={IdCard}         label="Active Users"             value="—" sub="Currently active"         variant="green"  />
-        <KpiCard icon={UserSearch}     label="Pending Registrations"    value="—" sub="Awaiting activation"      variant="amber"  />
-        <KpiCard icon={Warehouse}      label="Warehouses"               value="—" sub="Configured locations"     variant="purple" />
-        <KpiCard icon={Package}        label="Products"                 value="—" sub="In catalogue"             variant="slate"  />
-        <KpiCard icon={AlertTriangle}  label="System Alerts"            value="—" sub="Requiring attention"      variant="red"    />
-      </Section>
-
-      {/* Quick Actions — Document sidebar: Users | Roles & Permissions |
-          Employee Registration | Warehouses | Products | Barcode Configuration |
-          Capacity Rules | Suppliers | Audit Logs | Settings */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
-          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">System Administration</h3>
-          <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-2">
-            <QuickLink to="/users"          icon={Users}       label="User Management"        desc="Create, activate, deactivate users"            color="blue"   />
-            <QuickLink to="/roles"          icon={ShieldCheck} label="Roles & Permissions"    desc="Assign and manage role access"                 color="purple" />
-            <QuickLink to="/employees"      icon={IdCard}      label="Employee Registration"  desc="Generate and manage employee codes"            color="green"  />
-          </motion.div>
-        </div>
-        <div>
-          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Configuration</h3>
-          <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-2">
-            <QuickLink to="/warehouses"     icon={Warehouse}   label="Warehouses"             desc="Configure hierarchy: Level → Rack → Shelf"     color="teal"   />
-            <QuickLink to="/products"       icon={Package}     label="Products"               desc="Manage product catalogue"                      color="slate"  />
-            <QuickLink to="/barcode/config" icon={Barcode}     label="Barcode Configuration"  desc="Set barcode formats and rules"                 color="amber"  />
-            <QuickLink to="/capacity-rules" icon={Ruler}       label="Capacity Rules"         desc="Configure tire-size capacity rules"            color="amber"  />
-            <QuickLink to="/suppliers"      icon={Truck}       label="Suppliers"              desc="Manage supplier relationships"                 color="blue"   />
-          </motion.div>
-        </div>
-        <div>
-          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">System</h3>
-          <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-2">
-            <QuickLink to="/audit-logs"     icon={ScrollText}  label="Audit Logs"             desc="View system activity and change history"       color="slate"  />
-            <QuickLink to="/settings"       icon={Settings}    label="System Settings"        desc="Configure system-level preferences"            color="red"    />
-          </motion.div>
-        </div>
-      </div>
-    </>
-  );
+  return <AdminDashboardView name={name} />;
 }
 
 // ── MANAGER ───────────────────────────────────────────────────

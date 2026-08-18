@@ -8,6 +8,7 @@ const Input = forwardRef(
       icon: Icon,
       suffix,
       className = '',
+      labelClassName = 'text-slate-700',
       id,
       ...props
     },
@@ -19,7 +20,7 @@ const Input = forwardRef(
         {label && (
           <label
             htmlFor={id}
-            className="text-sm font-medium text-white"
+            className={`text-sm font-medium ${labelClassName}`}
           >
             {label}
           </label>

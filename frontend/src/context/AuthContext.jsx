@@ -47,6 +47,8 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let mounted = true;
 
+    let initialized = false;
+
     const init = async () => {
       try {
         const {
@@ -75,6 +77,7 @@ export function AuthProvider({ children }) {
           setRoles([]);
         }
       } finally {
+        initialized = true;
         if (mounted) setLoading(false);
       }
     };
@@ -97,10 +100,15 @@ export function AuthProvider({ children }) {
 
         if (!mounted) return;
 
+        // While init() is still running, don't touch loading or user state.
+        // init() is responsible for the initial auth check and will call
+        // setLoading(false) when it finishes.
+        if (!initialized) return;
+
         if (event === 'SIGNED_OUT' || !session) {
           setUser(null);
           setRoles([]);
-          if (mounted) setLoading(false);
+          setLoading(false);
           return;
         }
 
@@ -112,8 +120,6 @@ export function AuthProvider({ children }) {
         // SIGNED_IN is intentionally NOT handled here.
         // signIn() sets user/roles directly from the backend response,
         // which already contains the correct user data.
-
-        if (mounted) setLoading(false);
       }
     );
 

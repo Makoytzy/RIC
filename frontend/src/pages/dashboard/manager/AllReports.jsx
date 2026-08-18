@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
@@ -12,6 +13,7 @@ import {
   Activity,
   ArrowRight
 } from 'lucide-react';
+import api from '../../../services/api';
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
@@ -27,81 +29,6 @@ const staggerContainer = {
     }
   }
 };
-
-const reports = [
-  {
-    id: 'inventory',
-    title: 'Inventory Reports',
-    description: 'View stock levels, turnover rates, and inventory valuation',
-    icon: Package,
-    path: '/reports/inventory',
-    color: 'blue',
-    stats: { value: '2,345', label: 'Total Items' }
-  },
-  {
-    id: 'sales',
-    title: 'Sales Reports',
-    description: 'Analyze sales performance, trends, and revenue metrics',
-    icon: TrendingUp,
-    path: '/reports/sales',
-    color: 'green',
-    stats: { value: '$125K', label: 'This Month' }
-  },
-  {
-    id: 'stock-movement',
-    title: 'Stock Movement Reports',
-    description: 'Track inventory movements, transfers, and adjustments',
-    icon: Activity,
-    path: '/reports/stock-movement',
-    color: 'purple',
-    stats: { value: '1,234', label: 'Movements' }
-  },
-  {
-    id: 'discrepancy',
-    title: 'Discrepancy Reports',
-    description: 'Review quantity mismatches and counting discrepancies',
-    icon: FileWarning,
-    path: '/reports/discrepancy',
-    color: 'red',
-    stats: { value: '12', label: 'Open Issues' }
-  },
-  {
-    id: 'defects',
-    title: 'Defect Reports',
-    description: 'Monitor defective items, quality issues, and damage reports',
-    icon: AlertTriangle,
-    path: '/reports/defects',
-    color: 'orange',
-    stats: { value: '17', label: 'Defective Items' }
-  },
-  {
-    id: 'returns',
-    title: 'Return Reports',
-    description: 'Analyze return patterns, reasons, and processing times',
-    icon: RotateCcw,
-    path: '/reports/returns',
-    color: 'amber',
-    stats: { value: '45', label: 'This Month' }
-  },
-  {
-    id: 'refunds',
-    title: 'Refund Reports',
-    description: 'Track refund requests, amounts, and processing status',
-    icon: DollarSign,
-    path: '/reports/refunds',
-    color: 'teal',
-    stats: { value: '$8.5K', label: 'Total Refunds' }
-  },
-  {
-    id: 'employee-efficiency',
-    title: 'Employee Efficiency',
-    description: 'Monitor team performance, productivity, and task completion',
-    icon: Users,
-    path: '/reports/employee-efficiency',
-    color: 'indigo',
-    stats: { value: '87%', label: 'Avg Efficiency' }
-  }
-];
 
 const colorClasses = {
   blue: {
@@ -181,7 +108,7 @@ function ReportCard({ report }) {
         <h3 className="text-lg font-bold text-slate-900 mb-2">{report.title}</h3>
         <p className="text-sm text-slate-600 mb-4">{report.description}</p>
         <div className="flex items-baseline gap-2">
-          <span className={`text-2xl font-bold ${colors.text}`}>{report.stats.value}</span>
+          <span className={`text-2xl font-bold ${colors.text}`}>{report.stats.value || '—'}</span>
           <span className="text-xs text-slate-500">{report.stats.label}</span>
         </div>
       </motion.div>
@@ -190,6 +117,124 @@ function ReportCard({ report }) {
 }
 
 export default function AllReports() {
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalReports: 8,
+    revenueMTD: 0,
+    openIssues: 0,
+    activitiesToday: 0
+  });
+
+  const [reports, setReports] = useState([
+    {
+      id: 'inventory',
+      title: 'Inventory Reports',
+      description: 'View stock levels, turnover rates, and inventory valuation',
+      icon: Package,
+      path: '/reports/inventory',
+      color: 'blue',
+      stats: { value: '—', label: 'Total Items' }
+    },
+    {
+      id: 'sales',
+      title: 'Sales Reports',
+      description: 'Analyze sales performance, trends, and revenue metrics',
+      icon: TrendingUp,
+      path: '/reports/sales',
+      color: 'green',
+      stats: { value: '—', label: 'This Month' }
+    },
+    {
+      id: 'stock-movement',
+      title: 'Stock Movement Reports',
+      description: 'Track inventory movements, transfers, and adjustments',
+      icon: Activity,
+      path: '/reports/stock-movement',
+      color: 'purple',
+      stats: { value: '—', label: 'Movements' }
+    },
+    {
+      id: 'discrepancy',
+      title: 'Discrepancy Reports',
+      description: 'Review quantity mismatches and counting discrepancies',
+      icon: FileWarning,
+      path: '/reports/discrepancy',
+      color: 'red',
+      stats: { value: '—', label: 'Open Issues' }
+    },
+    {
+      id: 'defects',
+      title: 'Defect Reports',
+      description: 'Monitor defective items, quality issues, and damage reports',
+      icon: AlertTriangle,
+      path: '/reports/defects',
+      color: 'orange',
+      stats: { value: '—', label: 'Defective Items' }
+    },
+    {
+      id: 'returns',
+      title: 'Return Reports',
+      description: 'Analyze return patterns, reasons, and processing times',
+      icon: RotateCcw,
+      path: '/reports/returns',
+      color: 'amber',
+      stats: { value: '—', label: 'This Month' }
+    },
+    {
+      id: 'refunds',
+      title: 'Refund Reports',
+      description: 'Track refund requests, amounts, and processing status',
+      icon: DollarSign,
+      path: '/reports/refunds',
+      color: 'teal',
+      stats: { value: '—', label: 'Total Refunds' }
+    },
+    {
+      id: 'employee-efficiency',
+      title: 'Employee Efficiency',
+      description: 'Monitor team performance, productivity, and task completion',
+      icon: Users,
+      path: '/reports/employee-efficiency',
+      color: 'indigo',
+      stats: { value: '—', label: 'Avg Efficiency' }
+    }
+  ]);
+
+  useEffect(() => {
+    loadReportsData();
+  }, []);
+
+  const loadReportsData = async () => {
+    try {
+      setLoading(true);
+
+      // Note: These endpoints are placeholders and will be implemented when 
+      // inventory, sales, and other features are built
+      
+      // In the future, you would fetch real data like this:
+      // const { data } = await api.get('/reports/summary');
+      // setStats({
+      //   totalReports: 8,
+      //   revenueMTD: data.revenue || 0,
+      //   openIssues: data.openIssues || 0,
+      //   activitiesToday: data.activities || 0
+      // });
+
+      // For now, just set defaults
+      setStats({
+        totalReports: 8,
+        revenueMTD: 0,
+        openIssues: 0,
+        activitiesToday: 0
+      });
+
+    } catch (err) {
+      console.warn('Reports data not available:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <motion.div
       initial="hidden"
@@ -214,7 +259,7 @@ export default function AllReports() {
             </div>
             <div>
               <p className="text-sm text-slate-500">Total Reports</p>
-              <p className="text-2xl font-bold text-slate-900">{reports.length}</p>
+              <p className="text-2xl font-bold text-slate-900">{stats.totalReports}</p>
             </div>
           </div>
         </div>
@@ -225,7 +270,9 @@ export default function AllReports() {
             </div>
             <div>
               <p className="text-sm text-slate-500">Revenue MTD</p>
-              <p className="text-2xl font-bold text-slate-900">$125K</p>
+              <p className="text-2xl font-bold text-slate-900">
+                {stats.revenueMTD > 0 ? `$${(stats.revenueMTD / 1000).toFixed(1)}K` : '—'}
+              </p>
             </div>
           </div>
         </div>
@@ -236,7 +283,9 @@ export default function AllReports() {
             </div>
             <div>
               <p className="text-sm text-slate-500">Open Issues</p>
-              <p className="text-2xl font-bold text-slate-900">29</p>
+              <p className="text-2xl font-bold text-slate-900">
+                {stats.openIssues > 0 ? stats.openIssues : '—'}
+              </p>
             </div>
           </div>
         </div>
@@ -247,7 +296,9 @@ export default function AllReports() {
             </div>
             <div>
               <p className="text-sm text-slate-500">Activities Today</p>
-              <p className="text-2xl font-bold text-slate-900">1,234</p>
+              <p className="text-2xl font-bold text-slate-900">
+                {stats.activitiesToday > 0 ? stats.activitiesToday.toLocaleString() : '—'}
+              </p>
             </div>
           </div>
         </div>

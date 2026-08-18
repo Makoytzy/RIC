@@ -17,16 +17,17 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const status = error.response?.status;
+    const status  = error.response?.status;
     const message = error.response?.data?.error || error.message || 'Request failed';
 
-    // Suppress console noise for expected auth errors
-    if (status === 401 || status === 403) {
-      // Reject silently — callers decide whether to log or fall back
-      return Promise.reject(new Error(message));
-    }
+    // Build an enriched error that preserves the response object so callers
+    // can still inspect error.response?.status (e.g. 503 = table not ready).
+    const enriched     = new Error(message);
+    enriched.response  = error.response;   // ← keep full Axios response
+    enriched.status    = status;
 
-    return Promise.reject(new Error(message));
+    // Suppress console noise for expected auth errors (401/403 are handled upstream)
+    return Promise.reject(enriched);
   }
 );
 

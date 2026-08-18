@@ -95,7 +95,6 @@ export default function Header({ onMenuClick, pageTitle = 'Dashboard' }) {
             <Menu size={20} />
           </button>
           <div className="hidden sm:block">
-            <h2 className="text-base font-semibold text-slate-900 leading-tight">{pageTitle}</h2>
           </div>
         </div>
 

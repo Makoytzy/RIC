@@ -19,6 +19,12 @@ import {
   ChevronRight,
   LogOut,
   Zap,
+  ShieldCheck,
+  IdCard,
+  Package,
+  Barcode,
+  Ruler,
+  ScrollText,
 } from 'lucide-react';
 import logo from '../../Image/logo.jpg';
 import { useAuth } from '../../hooks/useAuth';
@@ -115,9 +121,51 @@ const NAVIGATION = [
     items: [
       {
         id: 'users',
-        label: 'Users & Employees',
+        label: 'Users Directory',
         icon: Users,
         path: '/users',
+        roles: ['admin'],
+      },
+      {
+        id: 'roles',
+        label: 'Roles & Matrix',
+        icon: ShieldCheck,
+        path: '/roles',
+        roles: ['admin'],
+      },
+      {
+        id: 'employees',
+        label: 'Employee Badges',
+        icon: IdCard,
+        path: '/employees',
+        roles: ['admin'],
+      },
+      {
+        id: 'warehouses',
+        label: 'Warehouse Layout',
+        icon: Warehouse,
+        path: '/warehouses',
+        roles: ['admin'],
+      },
+      {
+        id: 'products',
+        label: 'Master Catalog',
+        icon: Package,
+        path: '/products',
+        roles: ['admin'],
+      },
+      {
+        id: 'barcode-config',
+        label: 'Barcode Rules',
+        icon: Barcode,
+        path: '/barcode/config',
+        roles: ['admin'],
+      },
+      {
+        id: 'capacity-rules',
+        label: 'Capacity Rules',
+        icon: Ruler,
+        path: '/capacity-rules',
         roles: ['admin'],
       },
       {
@@ -128,8 +176,15 @@ const NAVIGATION = [
         roles: ['admin', 'manager', 'operational_staff'],
       },
       {
+        id: 'audit-logs',
+        label: 'Audit Trails',
+        icon: ScrollText,
+        path: '/audit-logs',
+        roles: ['admin'],
+      },
+      {
         id: 'settings',
-        label: 'Settings',
+        label: 'System Settings',
         icon: Settings,
         path: '/settings',
         roles: ['admin'],

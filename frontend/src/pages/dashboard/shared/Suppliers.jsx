@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Edit, Trash2, Truck, Search, Phone, Mail, MapPin, Eye } from 'lucide-react';
+import { Plus, Edit, Trash2, Truck, Search, Phone, Mail, MapPin, Eye, Database } from 'lucide-react';
 import Button from '../../../components/common/Button';
 import Modal from '../../../components/common/Modal';
 import Input from '../../../components/common/Input';
@@ -19,13 +19,14 @@ const fadeIn = {
 
 export default function Suppliers() {
   const { hasRole } = useAuth();
-  const [suppliers, setSuppliers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
+  const [suppliers,     setSuppliers]     = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [showModal,     setShowModal]     = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [editingSupplier, setEditingSupplier] = useState(null);
+  const [editingSupplier,  setEditingSupplier]  = useState(null);
   const [selectedSupplier, setSelectedSupplier] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery,  setSearchQuery]    = useState('');
+  const [dbReady,      setDbReady]        = useState(true);  // false = table not set up yet
   const [formData, setFormData] = useState({
     name: '',
     contactPerson: '',
@@ -48,34 +49,22 @@ export default function Suppliers() {
 
   const loadSuppliers = async () => {
     setLoading(true);
-
-    const mockData = [
-      {
-        id: 1, name: 'Tech Solutions Inc', contactPerson: 'John Smith',
-        email: 'john@techsolutions.com', phone: '+1-555-0100',
-        address: '123 Tech Street', city: 'San Francisco', state: 'CA',
-        zipCode: '94105', country: 'USA', paymentTerms: 'Net 30',
-        taxId: '12-3456789', status: 'active', totalOrders: 145, totalValue: 1250000
-      },
-      {
-        id: 2, name: 'Global Supplies Co', contactPerson: 'Sarah Johnson',
-        email: 'sarah@globalsupplies.com', phone: '+1-555-0200',
-        address: '456 Supply Ave', city: 'New York', state: 'NY',
-        zipCode: '10001', country: 'USA', paymentTerms: 'Net 60',
-        taxId: '98-7654321', status: 'active', totalOrders: 89, totalValue: 780000
-      },
-    ];
-
     try {
       const response = await api.get('/suppliers');
       setSuppliers(response.data.suppliers || []);
+      setDbReady(true);
     } catch (error) {
-      // 403 = role not yet assigned, silently use mock data
-      // Other errors = log for debugging
-      if (!error.message?.includes('permission') && !error.message?.includes('403')) {
+      setSuppliers([]);
+      // 503 = table not configured yet in Supabase
+      const is503 =
+        error.response?.status === 503 ||
+        error.status === 503 ||
+        error.message?.toLowerCase().includes('not configured');
+      if (is503) {
+        setDbReady(false);
+      } else {
         console.error('Error loading suppliers:', error);
       }
-      setSuppliers(mockData);
     } finally {
       setLoading(false);
     }
@@ -330,21 +319,43 @@ export default function Suppliers() {
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-slate-200">
-        {filteredSuppliers.length > 0 ? (
+        {!dbReady ? (
+          /* Suppliers table hasn't been created — prompt admin to run migration */
+          <div className="flex flex-col items-center justify-center gap-4 px-6 py-14 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-amber-100 flex items-center justify-center">
+              <Database size={28} className="text-amber-600" />
+            </div>
+            <div>
+              <p className="text-base font-semibold text-slate-800">Database table not set up yet</p>
+              <p className="mt-1 text-sm text-slate-500 max-w-md">
+                The <code className="bg-slate-100 px-1.5 py-0.5 rounded text-xs font-mono">suppliers</code> table
+                does not exist in Supabase. Run the SQL migration to start managing suppliers.
+              </p>
+            </div>
+            <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-left text-xs font-mono text-amber-800 max-w-sm w-full">
+              Supabase Dashboard → SQL Editor<br />
+              → Run: <strong>suppliers migration SQL</strong>
+            </div>
+          </div>
+        ) : filteredSuppliers.length > 0 ? (
           <Table columns={columns} data={filteredSuppliers} />
         ) : (
-          <EmptyState
-            icon={Truck}
-            title="No suppliers found"
-            description="Add your first supplier to get started"
-            action={
-              hasRole('admin', 'manager', 'operational_staff') && (
-                <Button onClick={() => setShowModal(true)} icon={Plus}>
-                  Add Supplier
-                </Button>
-              )
-            }
-          />
+          <div className="flex flex-col items-center justify-center gap-4 px-6 py-14 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center">
+              <Truck size={26} className="text-blue-400" />
+            </div>
+            <div>
+              <p className="text-base font-semibold text-slate-800">No suppliers yet</p>
+              <p className="mt-1 text-sm text-slate-500">
+                Add your first supplier to start managing your supply chain.
+              </p>
+            </div>
+            {hasRole('admin', 'manager', 'operational_staff') && (
+              <Button onClick={() => setShowModal(true)} icon={Plus}>
+                Add Supplier
+              </Button>
+            )}
+          </div>
         )}
       </div>
 

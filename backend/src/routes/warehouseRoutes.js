@@ -22,8 +22,18 @@ router.post('/receiving/:id/receive',
 );
 
 // ============================================
-// WAREHOUSE LOCATIONS ROUTES
+// WAREHOUSE FACILITIES & LOCATIONS ROUTES
 // ============================================
+router.get('/facilities',
+  authorize('admin', 'manager', 'operational_staff', 'warehouse_staff', 'sales_staff'),
+  warehouseController.getFacilities
+);
+
+router.post('/facilities',
+  authorize('admin', 'manager'),
+  warehouseController.createFacility
+);
+
 router.get('/locations',
   authorize('admin', 'manager', 'operational_staff', 'warehouse_staff', 'sales_staff'),
   warehouseController.getLocations

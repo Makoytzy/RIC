@@ -19,49 +19,58 @@ export async function authMiddleware(req, res, next) {
       return res.status(401).json({ error: 'Invalid or expired session' });
     }
 
-    // Use getRolesForUser which has full fallback logic:
-    // 1. user_roles table
-    // 2. public.users.position → auto-assign
-    // 3. auth.users metadata.position → auto-assign
-    const roleObjects = await getRolesForUser(data.user.id);
+    // Try getting roles from user_roles table first
+    let resolvedRoles = [];
+    try {
+      const { data: roleRows } = await supabaseAdmin
+        .from('user_roles')
+        .select('roles ( id, name )')
+        .eq('user_id', data.user.id);
+      resolvedRoles = (roleRows || []).map(r => r.roles?.name).filter(Boolean);
+    } catch (_) {}
 
-    // Last-resort fallback: if still no roles, check employeeCode metadata
-    // to find the position from the employees table
-    let resolvedRoles = roleObjects.map((r) => r.name).filter(Boolean);
-
+    // Fallback 1: read from public.users.position
     if (resolvedRoles.length === 0) {
-      const empCode = data.user.user_metadata?.employeeCode;
-      if (empCode) {
-        const { data: empRow } = await supabaseAdmin
-          .from('employees')
-          .select('employee_position')
-          .eq('employee_code', empCode)
+      try {
+        const { data: userRow } = await supabaseAdmin
+          .from('users')
+          .select('position')
+          .eq('id', data.user.id)
           .single();
-
-        if (empRow?.employee_position) {
+        if (userRow?.position) {
           const { data: roleRow } = await supabaseAdmin
-            .from('roles')
-            .select('id, name')
-            .eq('name', empRow.employee_position)
-            .single();
-
+            .from('roles').select('id, name').eq('name', userRow.position).single();
           if (roleRow) {
-            // Auto-assign role and update user profile
-            await supabaseAdmin
-              .from('user_roles')
-              .upsert(
-                { user_id: data.user.id, role_id: roleRow.id },
-                { onConflict: 'user_id,role_id', ignoreDuplicates: true }
-              );
-            await supabaseAdmin
-              .from('users')
-              .update({ position: empRow.employee_position, updated_at: new Date().toISOString() })
-              .eq('id', data.user.id);
-
+            await supabaseAdmin.from('user_roles')
+              .upsert({ user_id: data.user.id, role_id: roleRow.id }, { onConflict: 'user_id,role_id', ignoreDuplicates: true });
             resolvedRoles = [roleRow.name];
-            console.log('[authMiddleware] Auto-assigned role from employee code:', roleRow.name);
           }
         }
+      } catch (_) {}
+    }
+
+    // Fallback 2: read position directly from auth metadata (always works)
+    if (resolvedRoles.length === 0) {
+      const metaPosition = data.user.user_metadata?.position;
+      if (metaPosition) {
+        try {
+          const { data: roleRow } = await supabaseAdmin
+            .from('roles').select('id, name').eq('name', metaPosition).single();
+          if (roleRow) {
+            // Try to create the user profile and assign role
+            try {
+              await supabaseAdmin.from('users').upsert(
+                { id: data.user.id, email: data.user.email,
+                  full_name: data.user.user_metadata?.fullName || data.user.user_metadata?.full_name || data.user.email,
+                  position: metaPosition },
+                { onConflict: 'id' }
+              );
+              await supabaseAdmin.from('user_roles')
+                .upsert({ user_id: data.user.id, role_id: roleRow.id }, { onConflict: 'user_id,role_id', ignoreDuplicates: true });
+            } catch (_) {}
+            resolvedRoles = [roleRow.name];
+          }
+        } catch (_) {}
       }
     }
 

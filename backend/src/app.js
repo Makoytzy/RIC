@@ -13,6 +13,12 @@ import dashboardRoutes from './routes/dashboardRoutes.js';
 import warehouseRoutes from './routes/warehouseRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import supplierRoutes from './routes/supplierRoutes.js';
+import productRoutes from './routes/productRoutes.js';
+import capacityRuleRoutes from './routes/capacityRuleRoutes.js';
+import barcodeRoutes from './routes/barcodeRoutes.js';
+import auditLogRoutes from './routes/auditLogRoutes.js';
+import settingsRoutes from './routes/settingsRoutes.js';
+import employeeRoutes from './routes/employeeRoutes.js';
 
 const app = express();
 
@@ -27,25 +33,31 @@ app.get('/health', (req, res) => res.json({ status: 'ok', env: env.nodeEnv }));
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/roles', roleRoutes);
+app.use('/api/employees', employeeRoutes);
 
 // Dashboard
 app.use('/api/dashboard', dashboardRoutes);
 
-// Warehouse Operations
+// Master Product & Tire Catalog
+app.use('/api/products', productRoutes);
+
+// Warehouse Operations & Facilities
 app.use('/api/warehouse', warehouseRoutes);
+
+// Capacity Rules & Barcodes
+app.use('/api/capacity-rules', capacityRuleRoutes);
+app.use('/api/barcodes', barcodeRoutes);
 
 // Orders & Returns
 app.use('/api/orders', orderRoutes);
-app.use('/api/returns', orderRoutes); // Returns routes are in orderRoutes
+app.use('/api/returns', orderRoutes);
 
 // Suppliers
 app.use('/api/suppliers', supplierRoutes);
 
-// Future modules to be implemented:
-// app.use('/api/products', productRoutes);
-// app.use('/api/inventory', inventoryRoutes);
-// app.use('/api/sales', salesRoutes);
-// app.use('/api/reports', reportRoutes);
+// System Settings & Audit Logs
+app.use('/api/settings', settingsRoutes);
+app.use('/api/audit-logs', auditLogRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

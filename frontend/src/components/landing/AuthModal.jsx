@@ -405,6 +405,7 @@ function ForgotPasswordView({ onBack, onSuccess }) {
           label="Email Address"
           type="email"
           icon={Mail}
+          labelClassName="text-white"
           placeholder="you@example.com"
           value={email}
           onChange={(e) => { setEmail(e.target.value); setError(''); }}
@@ -670,8 +671,8 @@ export default function AuthModal({ mode, onClose, onSwitchMode }) {
               transition={{ duration: 0.2, ease: 'easeOut' }}
             >
 
-              {/* Close button — login and signup */}
-              {(view === 'login' || view === 'forgot' || view === 'signup') && (
+              {/* Close button — login and forgot only (not signup) */}
+              {(view === 'login' || view === 'forgot') && (
                 <button
                   type="button" onClick={onClose} aria-label="Close modal"
                   className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-slate-200 shadow-sm backdrop-blur-xl transition hover:bg-white/20 hover:text-slate-50"
@@ -780,6 +781,7 @@ export default function AuthModal({ mode, onClose, onSwitchMode }) {
                         {/* Full name */}
                         {view === 'signup' && (
                           <Input id="fullName" label="Full Name" icon={Users}
+                            labelClassName="text-white"
                             placeholder="Enter your full name" value={form.fullName}
                             disabled={employeeVerified}
                             className={employeeVerified ? '!text-slate-500' : ''}
@@ -789,6 +791,7 @@ export default function AuthModal({ mode, onClose, onSwitchMode }) {
 
                         {/* Email */}
                         <Input id="email" label="Email Address" type="email" icon={Mail}
+                          labelClassName="text-white"
                           placeholder="you@example.com" value={form.email}
                           disabled={view === 'signup' && employeeVerified}
                           readOnly={view === 'signup' && employeeVerified}
@@ -798,6 +801,7 @@ export default function AuthModal({ mode, onClose, onSwitchMode }) {
 
                         {/* Password */}
                         <Input id="password" label="Password"
+                          labelClassName="text-white"
                           type={showPassword ? 'text' : 'password'} icon={Lock}
                           placeholder="Enter your password" value={form.password}
                           onChange={(e) => handleChange('password', e.target.value)}
@@ -813,6 +817,7 @@ export default function AuthModal({ mode, onClose, onSwitchMode }) {
                         {/* Confirm password */}
                         {view === 'signup' && (
                           <Input id="confirmPassword" label="Confirm Password"
+                            labelClassName="text-white"
                             type={showConfirmPassword ? 'text' : 'password'} icon={Lock}
                             placeholder="Re-enter your password" value={form.confirmPassword}
                             onChange={(e) => handleChange('confirmPassword', e.target.value)}
