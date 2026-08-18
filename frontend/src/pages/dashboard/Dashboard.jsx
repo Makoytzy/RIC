@@ -107,234 +107,33 @@ function AlertBanner({ items }) {
 }
 
 import AdminDashboardView from './admin/AdminDashboardView.jsx';
+import ManagerDashboardView from './manager/ManagerDashboardView.jsx';
+import OperationalDashboardView from './operational/OperationalDashboardView.jsx';
+import WarehouseDashboardView from './warehouse/WarehouseDashboardView.jsx';
+import SalesDashboardView from './sales/SalesDashboardView.jsx';
 
 // ══════════════════════════════════════════════════════════════
 // ROLE DASHBOARDS
 // ══════════════════════════════════════════════════════════════
 
-// ── ADMIN ──────────────────────────────────────────────────────
 function AdminDashboard({ name }) {
   return <AdminDashboardView name={name} />;
 }
 
-// ── MANAGER ───────────────────────────────────────────────────
 function ManagerDashboard({ name }) {
-  return (
-    <>
-      <AlertBanner items={['Pending approvals require your review']} />
-
-      {/* KPIs — Document: Total Inventory, Low Stock, Incoming Shipments,
-                         Pending Receiving, Storage Capacity, Discrepancies,
-                         Pending Approvals, Today's Orders */}
-      <Section title="Operational Overview" cols={4}>
-        <KpiCard icon={Boxes}         label="Total Inventory"      value="—" sub="Units in stock"               variant="blue"   />
-        <KpiCard icon={AlertTriangle} label="Low Stock"            value="—" sub="Products below threshold"     variant="amber"  />
-        <KpiCard icon={Ship}          label="Incoming Shipments"   value="—" sub="En route"                     variant="purple" />
-        <KpiCard icon={PackageCheck}  label="Pending Receiving"    value="—" sub="Awaiting dock check-in"       variant="slate"  />
-        <KpiCard icon={Warehouse}     label="Storage Capacity"     value="—" sub="Locations available"          variant="green"  />
-        <KpiCard icon={AlertTriangle} label="Discrepancies"        value="—" sub="Open cases"                   variant="red"    />
-        <KpiCard icon={CheckCircle}   label="Pending Approvals"    value="—" sub="Awaiting your review"         variant="amber"  />
-        <KpiCard icon={ShoppingCart}  label="Today's Orders"       value="—" sub="New orders today"             variant="teal" />
-      </Section>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
-          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Inventory & Warehouse</h3>
-          <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-2">
-            <QuickLink to="/inventory"       icon={Boxes}         label="Inventory Overview"    desc="Monitor stock levels and locations"           color="blue"   />
-            <QuickLink to="/receiving"       icon={PackageCheck}  label="Receiving"             desc="Review incoming shipment results"            color="green"  />
-            <QuickLink to="/warehouse"       icon={Warehouse}     label="Warehouse Storage"     desc="Monitor exact storage locations"             color="teal"   />
-            <QuickLink to="/barcodes"        icon={Barcode}       label="Barcode Monitoring"    desc="Individual tire traceability"                color="purple" />
-            <QuickLink to="/stock-movement"  icon={MoveRight}     label="Stock Movement"        desc="Track inventory movements"                   color="slate"  />
-            <QuickLink to="/discrepancies"   icon={AlertTriangle} label="Discrepancies"         desc="Approve or reject discrepancy actions"       color="red"    />
-          </motion.div>
-        </div>
-        <div>
-          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Operations & Reports</h3>
-          <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-2">
-            <QuickLink to="/approvals"                icon={CheckCircle}   label="Approval Requests"      desc="Review and approve pending requests"         color="amber"  />
-            <QuickLink to="/orders"                   icon={ShoppingCart}  label="Orders"                 desc="Monitor and supervise order activity"         color="blue"   />
-            <QuickLink to="/returns"                  icon={RotateCcw}     label="Returns / Refunds"      desc="Monitor return and refund cases"              color="amber"  />
-            <QuickLink to="/reports"                  icon={BarChart2}     label="All Reports"            desc="Access all operational reports"              color="purple" />
-            <QuickLink to="/reports/inventory"        icon={Boxes}         label="Inventory Reports"      desc="Stock level and movement reports"            color="green"  />
-            <QuickLink to="/reports/discrepancies"    icon={FileStack}     label="Discrepancy Reports"    desc="Missing, excess, wrong, damaged inventory"    color="red"    />
-          </motion.div>
-        </div>
-      </div>
-    </>
-  );
+  return <ManagerDashboardView name={name} />;
 }
 
-// ── OPERATIONAL STAFF ─────────────────────────────────────────
 function OperationalDashboard({ name }) {
-  return (
-    <>
-      {/* KPIs — Document: Expected Shipments, Today's Arrivals,
-                         Pending Shipments, Completed Shipments, Products Expected */}
-      <Section title="Shipment Overview" cols={3}>
-        <KpiCard icon={Calendar}      label="Expected Shipments"    value="—" sub="Scheduled arrivals"          variant="blue"   />
-        <KpiCard icon={Ship}          label="Today's Arrivals"      value="—" sub="Arriving today"              variant="green"  />
-        <KpiCard icon={Clock}         label="Pending Shipments"     value="—" sub="Not yet received"            variant="amber"  />
-        <KpiCard icon={CheckCircle}   label="Completed Shipments"   value="—" sub="Received this week"          variant="slate"  />
-        <KpiCard icon={Package}       label="Products Expected"     value="—" sub="Units on incoming shipments" variant="purple" />
-      </Section>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
-          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Shipments</h3>
-          <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-2">
-            <QuickLink to="/shipments/incoming"  icon={Ship}         label="Incoming Shipments"    desc="Create and manage shipment records"           color="blue"   />
-            <QuickLink to="/shipments/documents" icon={FileStack}    label="Shipment Documents"    desc="BL number, packing list, container info"       color="slate"  />
-            <QuickLink to="/shipments/schedule"  icon={Calendar}     label="Shipment Schedule"     desc="View expected arrival dates"                  color="purple" />
-          </motion.div>
-        </div>
-        <div>
-          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Products & Inventory</h3>
-          <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-2">
-            <QuickLink to="/products/list"       icon={Package}      label="Products"              desc="Encode product info and expected quantities"   color="green"  />
-            <QuickLink to="/expected-inventory"  icon={ListChecks}   label="Expected Inventory"    desc="Maintain expected inventory records"           color="teal"   />
-            <QuickLink to="/barcode/prepare"     icon={Barcode}      label="Barcode Preparation"   desc="Prepare shipment barcode information"          color="amber"  />
-            <QuickLink to="/suppliers"           icon={Truck}        label="Suppliers"             desc="View supplier information"                     color="slate"  />
-          </motion.div>
-        </div>
-      </div>
-
-      {/* Workflow guide */}
-      <div className="mt-6">
-        <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Shipment Preparation Workflow</h3>
-        <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-2">
-          {[
-            { step: '1', label: 'Create incoming shipment record',                    path: '/shipments/incoming',  color: 'bg-blue-100 text-blue-700'   },
-            { step: '2', label: 'Encode supplier, BL number, container & packing list', path: '/shipments/documents', color: 'bg-purple-100 text-purple-700' },
-            { step: '3', label: 'Encode product information and expected quantities', path: '/products/list',       color: 'bg-green-100 text-green-700'  },
-            { step: '4', label: 'Prepare barcode information for shipment',           path: '/barcode/prepare',     color: 'bg-amber-100 text-amber-700'  },
-            { step: '5', label: 'Confirm expected arrival date in schedule',          path: '/shipments/schedule',  color: 'bg-teal-100 text-teal-700'    },
-          ].map((s) => (
-            <Link key={s.step} to={s.path}>
-              <motion.div variants={fadeUp}
-                className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 hover:bg-blue-50 hover:border-blue-200 transition-colors">
-                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${s.color}`}>{s.step}</span>
-                <span className="text-sm text-slate-700">{s.label}</span>
-                <ChevronRight size={13} className="ml-auto text-slate-400" />
-              </motion.div>
-            </Link>
-          ))}
-        </motion.div>
-      </div>
-    </>
-  );
+  return <OperationalDashboardView name={name} />;
 }
 
-// ── WAREHOUSE STAFF ───────────────────────────────────────────
 function WarehouseDashboard({ name }) {
-  return (
-    <>
-      {/* KPIs — Document: Shipments to Receive, Receiving Today,
-                         Items to Store, Storage Tasks, Pending Discrepancies,
-                         Stock Count Tasks */}
-      <Section title="Warehouse Overview" cols={3}>
-        <KpiCard icon={Ship}          label="Shipments to Receive"  value="—" sub="At dock awaiting check-in"   variant="purple" />
-        <KpiCard icon={PackageCheck}  label="Receiving Today"       value="—" sub="Scheduled for today"         variant="blue"   />
-        <KpiCard icon={MapPin}        label="Items to Store"        value="—" sub="Pending storage assignment"  variant="green"  />
-        <KpiCard icon={ListChecks}    label="Storage Tasks"         value="—" sub="Active put-away tasks"       variant="teal"   />
-        <KpiCard icon={AlertTriangle} label="Pending Discrepancies" value="—" sub="Open discrepancy reports"   variant="red"    />
-        <KpiCard icon={ClipboardList} label="Stock Count Tasks"     value="—" sub="Scheduled counts"           variant="amber"  />
-      </Section>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
-          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Quick Access</h3>
-          <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-2">
-            <QuickLink to="/receiving"       icon={PackageCheck}  label="Receiving"              desc="Receive physical shipments at dock"           color="blue"   />
-            <QuickLink to="/barcode/scan"    icon={ScanBarcode}   label="Barcode Scanner"        desc="Scan individual tire barcodes"                color="purple" />
-            <QuickLink to="/inventory"       icon={Boxes}         label="Inventory"              desc="View current inventory levels"                color="green"  />
-            <QuickLink to="/warehouse"       icon={Warehouse}     label="Storage Locations"      desc="Follow system-assigned shelf locations"       color="teal"   />
-            <QuickLink to="/stock-movement"  icon={MoveRight}     label="Stock Movement"         desc="Move stock between authorized locations"      color="slate"  />
-            <QuickLink to="/inventory/count" icon={ClipboardList} label="Inventory Count"        desc="Perform inventory counts"                     color="amber"  />
-            <QuickLink to="/discrepancies"   icon={AlertTriangle} label="Discrepancies"          desc="Create and report discrepancy cases"          color="red"    />
-            <QuickLink to="/location-lookup" icon={Search}        label="Location Lookup"        desc="Find exact location and traceability of a tire" color="blue" />
-          </motion.div>
-        </div>
-        <div>
-          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Physical Receiving Workflow</h3>
-          <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-2">
-            {[
-              { step: '1', label: 'Receive physical shipment at dock',                path: '/receiving',       color: 'bg-blue-100 text-blue-700'   },
-              { step: '2', label: 'Verify shipment documents and quantities',         path: '/receiving',       color: 'bg-purple-100 text-purple-700' },
-              { step: '3', label: 'Scan individual tire barcodes',                   path: '/barcode/scan',    color: 'bg-green-100 text-green-700'  },
-              { step: '4', label: 'Inspect tires and report any discrepancies',      path: '/discrepancies',   color: 'bg-amber-100 text-amber-700'  },
-              { step: '5', label: 'Follow system-assigned storage location',         path: '/warehouse',       color: 'bg-teal-100 text-teal-700'    },
-              { step: '6', label: 'Record stock movement after storage',             path: '/stock-movement',  color: 'bg-slate-100 text-slate-700'  },
-            ].map((s) => (
-              <Link key={s.step} to={s.path}>
-                <motion.div variants={fadeUp}
-                  className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 hover:bg-blue-50 hover:border-blue-200 transition-colors">
-                  <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${s.color}`}>{s.step}</span>
-                  <span className="text-sm text-slate-700">{s.label}</span>
-                  <ChevronRight size={13} className="ml-auto text-slate-400" />
-                </motion.div>
-              </Link>
-            ))}
-          </motion.div>
-        </div>
-      </div>
-    </>
-  );
+  return <WarehouseDashboardView name={name} />;
 }
 
-// ── SALES STAFF ───────────────────────────────────────────────
 function SalesDashboard({ name }) {
-  return (
-    <>
-      {/* KPIs — Document: Today's Orders, Pending Orders, Orders to Pick,
-                         Ready for Release, Completed Orders, Returns */}
-      <Section title="Sales Overview" cols={3}>
-        <KpiCard icon={ShoppingCart}  label="Today's Orders"        value="—" sub="New orders today"            variant="blue"   />
-        <KpiCard icon={Clock}         label="Pending Orders"         value="—" sub="Awaiting processing"         variant="amber"  />
-        <KpiCard icon={ListChecks}    label="Orders to Pick"         value="—" sub="Ready for warehouse pick"    variant="purple" />
-        <KpiCard icon={Package}       label="Ready for Release"      value="—" sub="Packed and waiting"          variant="green"  />
-        <KpiCard icon={CheckCircle}   label="Completed Orders"       value="—" sub="Delivered today"             variant="slate"  />
-        <KpiCard icon={RotateCcw}     label="Returns"                value="—" sub="Pending verification"        variant="red"    />
-      </Section>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
-          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Quick Access</h3>
-          <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-2">
-            <QuickLink to="/orders"          icon={ShoppingCart}  label="Orders"                  desc="Create and manage online & walk-in orders"   color="blue"   />
-            <QuickLink to="/customers"       icon={Users}         label="Customers"               desc="Create and view customer records"             color="green"  />
-            <QuickLink to="/inventory/lookup" icon={Search}       label="Inventory Lookup"        desc="Check inventory availability by product"      color="teal"   />
-            <QuickLink to="/picking"         icon={ListChecks}    label="Picking"                 desc="Create and monitor picking tasks"             color="purple" />
-            <QuickLink to="/barcode/scan"    icon={ScanBarcode}   label="Barcode Scanner"         desc="Verify individual inventory items"            color="slate"  />
-            <QuickLink to="/receipts"        icon={Receipt}       label="Acknowledgement Receipts" desc="Prepare and manage receipts"                 color="amber"  />
-            <QuickLink to="/returns"         icon={RotateCcw}     label="Returns"                 desc="Process sales-related returns"                color="red"    />
-          </motion.div>
-        </div>
-        <div>
-          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Sales Order Workflow</h3>
-          <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-2">
-            {[
-              { step: '1', label: 'Create or find the customer record',       path: '/customers',        color: 'bg-blue-100 text-blue-700'   },
-              { step: '2', label: 'Create online or walk-in order',           path: '/orders',           color: 'bg-purple-100 text-purple-700' },
-              { step: '3', label: 'Check inventory availability',             path: '/inventory/lookup', color: 'bg-green-100 text-green-700'  },
-              { step: '4', label: 'Create or monitor picking task',           path: '/picking',          color: 'bg-amber-100 text-amber-700'  },
-              { step: '5', label: 'Scan barcode to verify inventory item',    path: '/barcode/scan',     color: 'bg-teal-100 text-teal-700'    },
-              { step: '6', label: 'Prepare acknowledgement receipt',          path: '/receipts',         color: 'bg-slate-100 text-slate-700'  },
-            ].map((s) => (
-              <Link key={s.step} to={s.path}>
-                <motion.div variants={fadeUp}
-                  className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 hover:bg-blue-50 hover:border-blue-200 transition-colors">
-                  <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${s.color}`}>{s.step}</span>
-                  <span className="text-sm text-slate-700">{s.label}</span>
-                  <ChevronRight size={13} className="ml-auto text-slate-400" />
-                </motion.div>
-              </Link>
-            ))}
-          </motion.div>
-        </div>
-      </div>
-    </>
-  );
+  return <SalesDashboardView name={name} />;
 }
 
 // ── No-role fallback ──────────────────────────────────────────
@@ -381,20 +180,6 @@ export default function Dashboard() {
 
   return (
     <motion.div initial="hidden" animate="visible" variants={stagger}>
-
-      {/* Greeting */}
-      <motion.div variants={fadeUp} className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-900">
-          {greeting}, {firstName}.
-        </h2>
-        <p className="mt-0.5 text-sm text-slate-500">
-          Here's what's happening with your inventory today.
-        </p>
-        <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-400">
-          <Clock size={11} /> {dateStr}
-        </p>
-      </motion.div>
-
       {content}
     </motion.div>
   );

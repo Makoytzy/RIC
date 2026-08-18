@@ -209,9 +209,9 @@ export default function AdminDashboardView({ name = 'Admin' }) {
       {/* ── Executive Hero Banner ─────────────────────────────────── */}
       <motion.div
         variants={fadeUp}
-        className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-850 to-brand-900 p-6 sm:p-8 text-white shadow-xl border border-slate-700/50"
+        className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-950 via-slate-900 to-slate-900 p-6 sm:p-8 text-white shadow-xl border border-slate-800"
       >
-        <div className="absolute right-0 top-0 -mt-12 -mr-12 h-64 w-64 rounded-full bg-brand-500/15 blur-3xl pointer-events-none" />
+        <div className="absolute right-0 top-0 -mt-12 -mr-12 h-64 w-64 rounded-full bg-brand-500/10 blur-3xl pointer-events-none" />
         <div className="absolute left-1/3 bottom-0 -mb-12 h-48 w-48 rounded-full bg-purple-500/10 blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
@@ -260,46 +260,46 @@ export default function AdminDashboardView({ name = 'Admin' }) {
 
         {/* Real-time System Health Bar */}
         <div className="relative z-10 mt-6 pt-5 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-300">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-900/80 border border-slate-700/60 backdrop-blur-md shadow-sm">
+            <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-300 shrink-0">
               <Server className="w-4 h-4" />
             </div>
-            <div>
-              <p className="text-[11px] uppercase tracking-wider text-slate-400">Database Status</p>
-              <p className="text-sm font-semibold text-emerald-400 flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-300">Database Status</p>
+              <p className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5 mt-0.5 truncate">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
                 {metrics.dbHealth} (Online)
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-blue-500/20 text-blue-300">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-900/80 border border-slate-700/60 backdrop-blur-md shadow-sm">
+            <div className="p-2 rounded-lg bg-blue-500/20 text-blue-300 shrink-0">
               <Cpu className="w-4 h-4" />
             </div>
-            <div>
-              <p className="text-[11px] uppercase tracking-wider text-slate-400">API Response</p>
-              <p className="text-sm font-semibold text-slate-200">{metrics.apiLatency}</p>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-300">API Response</p>
+              <p className="text-xs font-semibold text-slate-100 mt-0.5 truncate">{metrics.apiLatency}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-purple-500/20 text-purple-300">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-900/80 border border-slate-700/60 backdrop-blur-md shadow-sm">
+            <div className="p-2 rounded-lg bg-purple-500/20 text-purple-300 shrink-0">
               <ShieldCheck className="w-4 h-4" />
             </div>
-            <div>
-              <p className="text-[11px] uppercase tracking-wider text-slate-400">Security Gate</p>
-              <p className="text-sm font-semibold text-purple-300">Enforced &amp; Active</p>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-300">Security Gate</p>
+              <p className="text-xs font-semibold text-purple-300 mt-0.5 truncate">Enforced &amp; Active</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-amber-500/20 text-amber-300">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-900/80 border border-slate-700/60 backdrop-blur-md shadow-sm">
+            <div className="p-2 rounded-lg bg-amber-500/20 text-amber-300 shrink-0">
               <HardDrive className="w-4 h-4" />
             </div>
-            <div>
-              <p className="text-[11px] uppercase tracking-wider text-slate-400">System Uptime</p>
-              <p className="text-sm font-semibold text-amber-300">{metrics.serverUptime}</p>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-300">System Uptime</p>
+              <p className="text-xs font-bold text-amber-400 mt-0.5 truncate">{metrics.serverUptime || '99.98%'}</p>
             </div>
           </div>
         </div>
