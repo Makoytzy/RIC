@@ -1,4 +1,4 @@
-import { supabaseAdmin, supabaseForUserToken } from '../config/supabase.js';
+import { supabaseAdmin } from '../config/supabase.js';
 import { AppError } from '../middleware/errorMiddleware.js';
 
 const DEFAULT_ROLE = 'operational_staff';
