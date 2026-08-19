@@ -55,12 +55,69 @@ export default function BarcodeGeneration() {
       const { data } = await api.get('/products');
       
       if (!data?.products || data.products.length === 0) {
-        console.warn('Using fallback product data');
+        console.info('📦 Using demo product catalog (database products not available)');
+        // Demo products with complete data structure
         const fallbackProducts = [
-          { id: '1', sku: 'SAW-15-130/90', brand: 'Red Indian Customs', model: 'Classic Sawtooth', dimensions: '130/90-15', category: 'Sawtooth' },
-          { id: '2', sku: 'SAW-15-170/80', brand: 'Red Indian Customs', model: 'Classic Sawtooth', dimensions: '170/80-15', category: 'Sawtooth' },
-          { id: '3', sku: 'END-17-70/90', brand: 'Red Indian Customs', model: 'Enduro Trail', dimensions: '70/90-17', category: 'Enduro' },
-          { id: '4', sku: 'STD-17-90/90', brand: 'Red Indian Customs', model: 'ST Dual Sport', dimensions: '90/90-17', category: 'Dual Sport' },
+          { 
+            id: '1', 
+            sku: 'SAW-15-130/90', 
+            brand: 'Red Indian Customs', 
+            model: 'Classic Sawtooth', 
+            product_name: 'Classic Sawtooth Tire',
+            dimensions: '130/90-15', 
+            category: 'Sawtooth',
+            status: 'active'
+          },
+          { 
+            id: '2', 
+            sku: 'SAW-15-170/80', 
+            brand: 'Red Indian Customs', 
+            model: 'Classic Sawtooth', 
+            product_name: 'Classic Sawtooth Tire',
+            dimensions: '170/80-15', 
+            category: 'Sawtooth',
+            status: 'active'
+          },
+          { 
+            id: '3', 
+            sku: 'END-17-70/90', 
+            brand: 'Red Indian Customs', 
+            model: 'Enduro Trail', 
+            product_name: 'Enduro Trail Tire',
+            dimensions: '70/90-17', 
+            category: 'Enduro',
+            status: 'active'
+          },
+          { 
+            id: '4', 
+            sku: 'STD-17-90/90', 
+            brand: 'Red Indian Customs', 
+            model: 'ST Dual Sport', 
+            product_name: 'ST Dual Sport Tire',
+            dimensions: '90/90-17', 
+            category: 'Dual Sport',
+            status: 'active'
+          },
+          { 
+            id: '5', 
+            sku: 'MX-18-80/100', 
+            brand: 'Red Indian Customs', 
+            model: 'MX Motocross', 
+            product_name: 'MX Motocross Tire',
+            dimensions: '80/100-18', 
+            category: 'Motocross',
+            status: 'active'
+          },
+          { 
+            id: '6', 
+            sku: 'TRL-17-110/80', 
+            brand: 'Red Indian Customs', 
+            model: 'Trail Master', 
+            product_name: 'Trail Master Tire',
+            dimensions: '110/80-17', 
+            category: 'Trail',
+            status: 'active'
+          },
         ];
         setProducts(fallbackProducts);
         return;
@@ -91,6 +148,14 @@ export default function BarcodeGeneration() {
       const { data } = await api.post('/barcodes', {
         productId: product.id,
         batchId: null,
+        productData: {
+          sku: product.sku,
+          brand: product.brand,
+          model: product.model,
+          name: product.product_name || product.name,
+          dimensions: product.dimensions,
+          category: product.category
+        }
       });
 
       if (data?.barcode) {
@@ -121,14 +186,30 @@ export default function BarcodeGeneration() {
         const { data } = await api.post('/barcodes', {
           productId: product.id,
           quantity: batchQuantity,
+          productData: {
+            sku: product.sku,
+            brand: product.brand,
+            model: product.model,
+            name: product.product_name || product.name,
+            dimensions: product.dimensions,
+            category: product.category
+          }
         });
         if (data?.barcodes) {
           results.push(...data.barcodes);
         } else if (data?.barcode) {
-          // Handle single barcode response
+          // Handle single barcode response - generate multiple
           for (let i = 0; i < batchQuantity; i++) {
             const { data: singleData } = await api.post('/barcodes', {
               productId: product.id,
+              productData: {
+                sku: product.sku,
+                brand: product.brand,
+                model: product.model,
+                name: product.product_name || product.name,
+                dimensions: product.dimensions,
+                category: product.category
+              }
             });
             if (singleData?.barcode) results.push(singleData.barcode);
           }
@@ -382,51 +463,58 @@ export default function BarcodeGeneration() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 mb-2">
-            <ScanBarcode className="w-3.5 h-3.5" />
-            Operational Staff
+    <div className="bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 -m-6 p-4">
+      {/* Compact Premium Header */}
+      <div className="mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30 mb-2">
+              <ScanBarcode className="w-3 h-3" />
+              OPERATIONAL STAFF
+            </div>
+            <h1 className="text-xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 bg-clip-text text-transparent tracking-tight">
+              Barcode & QR Generation
+            </h1>
+            <p className="text-slate-600 text-xs flex items-center gap-1.5">
+              <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></div>
+              Generate unique barcodes with QR codes for full traceability
+            </p>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Barcode & QR Generation</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Generate unique barcodes with QR codes for full traceability</p>
-        </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setBatchMode(!batchMode)}
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-              batchMode
-                ? 'bg-amber-500 text-white shadow-md'
-                : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            <Boxes className="w-4 h-4" />
-            {batchMode ? 'Batch Mode: ON' : 'Batch Mode'}
-          </button>
-          <button
-            onClick={loadGeneratedBarcodes}
-            className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-all"
-            title="Refresh"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setBatchMode(!batchMode)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 ${
+                batchMode
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/40'
+                  : 'bg-white border-2 border-slate-200 text-slate-700 hover:border-amber-400'
+              }`}
+            >
+              <Boxes className="w-3.5 h-3.5" />
+              {batchMode ? 'Batch: ON' : 'Batch'}
+            </button>
+            <button
+              onClick={loadGeneratedBarcodes}
+              className="p-1.5 rounded-lg bg-white border-2 border-slate-200 text-slate-700 hover:border-blue-400 transition-all duration-300"
+              title="Refresh"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Alerts */}
+      {/* Compact Alerts */}
       <AnimatePresence>
         {success && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-center gap-2"
+            className="p-2.5 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 text-emerald-900 text-xs flex items-center gap-2 shadow-md"
           >
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>{success}</span>
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span className="font-medium">{success}</span>
           </motion.div>
         )}
 
@@ -435,57 +523,62 @@ export default function BarcodeGeneration() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm flex items-center gap-2"
+            className="p-2.5 rounded-xl bg-gradient-to-r from-rose-50 to-red-50 border border-rose-200 text-rose-900 text-xs flex items-center gap-2 shadow-md"
           >
-            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-            <span>{error}</span>
+            <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+            <span className="font-medium">{error}</span>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left: Product Selection */}
-        <div className="space-y-4">
-          <div className="rounded-2xl bg-white p-6 border border-slate-200/80 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Package className="w-4 h-4 text-blue-600" />
+      {/* Compact Main Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Left: Product Selection - Compact Card */}
+        <div className="space-y-3">
+          <div className="rounded-2xl bg-white p-4 border border-slate-200 shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md">
+                  <Package className="w-4 h-4 text-white" />
+                </div>
                 Select Products
               </h2>
               {batchMode && selectedProducts.length > 0 && (
-                <span className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
-                  {selectedProducts.length} selected
+                <span className="text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-2 py-0.5 rounded-full shadow-sm">
+                  {selectedProducts.length}
                 </span>
               )}
             </div>
 
-            {/* Search */}
-            <div className="relative mb-4">
+            {/* Compact Search */}
+            <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search products by name or SKU..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-blue-500 outline-none"
+                placeholder="Search products..."
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-xs focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none transition-all bg-slate-50/50"
               />
             </div>
 
-            {/* Batch Controls */}
+            {/* Compact Batch Controls */}
             {batchMode && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="mb-4 p-4 rounded-xl bg-amber-50 border border-amber-200"
+                className="mb-3 p-3 rounded-lg bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 shadow-sm"
               >
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-semibold text-slate-700">Quantity per Product:</label>
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-bold text-amber-900 flex items-center gap-1">
+                    <Boxes className="w-3 h-3" />
+                    Quantity:
+                  </label>
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => setBatchQuantity(Math.max(1, batchQuantity - 1))}
-                      className="w-8 h-8 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 flex items-center justify-center"
+                      className="w-7 h-7 rounded-lg bg-white border border-amber-200 hover:bg-amber-50 flex items-center justify-center font-bold text-amber-700 text-sm"
                     >
                       -
                     </button>
@@ -493,11 +586,11 @@ export default function BarcodeGeneration() {
                       type="number"
                       value={batchQuantity}
                       onChange={(e) => setBatchQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-16 text-center px-2 py-1 rounded-lg border border-slate-200 font-semibold"
+                      className="w-14 text-center px-1 py-1 rounded-lg border border-amber-200 font-bold text-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none"
                     />
                     <button
                       onClick={() => setBatchQuantity(batchQuantity + 1)}
-                      className="w-8 h-8 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 flex items-center justify-center"
+                      className="w-7 h-7 rounded-lg bg-white border border-amber-200 hover:bg-amber-50 flex items-center justify-center font-bold text-amber-700 text-sm"
                     >
                       +
                     </button>
@@ -506,53 +599,59 @@ export default function BarcodeGeneration() {
                 <button
                   onClick={handleGenerateBatch}
                   disabled={loading || selectedProducts.length === 0}
-                  className="w-full mt-3 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-sm font-semibold shadow-md disabled:opacity-50 transition-all"
+                  className="w-full px-3 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold shadow-md disabled:opacity-50 transition-all"
                 >
                   Generate {selectedProducts.length * batchQuantity} Barcodes
                 </button>
               </motion.div>
             )}
 
-            {/* Product List */}
-            <div className="space-y-2 max-h-96 overflow-y-auto">
+            {/* Compact Product List */}
+            <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
               {filteredProducts.length === 0 ? (
-                <div className="text-center py-8 text-slate-500 text-sm">
-                  No products found
+                <div className="text-center py-8 text-slate-500 text-xs">
+                  <Package className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+                  <p className="font-semibold">No products found</p>
                 </div>
               ) : (
                 filteredProducts.map(product => (
                   <div
                     key={product.id}
-                    className={`p-3 rounded-xl border transition-all ${
+                    className={`p-2.5 rounded-lg border transition-all cursor-pointer ${
                       batchMode && selectedProducts.find(p => p.id === product.id)
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-slate-200 bg-white hover:border-slate-300'
+                        ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-sm'
+                        : 'border-slate-200 bg-white hover:border-blue-300 hover:shadow-sm'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-2">
                       <div className="flex-1 flex items-start gap-2">
                         {batchMode && (
                           <input
                             type="checkbox"
                             checked={selectedProducts.some(p => p.id === product.id)}
                             onChange={() => toggleProductSelection(product)}
-                            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                           />
                         )}
-                        <div>
-                          <span className="text-sm font-semibold text-slate-900 block">
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-bold text-slate-900 block truncate">
                             {product.brand && product.model ? `${product.brand} ${product.model}` : (product.name || product.product_name)}
                           </span>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            SKU: {product.sku} {product.dimensions && `• ${product.dimensions}`}
-                          </p>
+                          <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
+                            <span className="px-1.5 py-0.5 rounded bg-slate-100 font-mono font-semibold text-[10px]">
+                              {product.sku}
+                            </span>
+                            {product.dimensions && (
+                              <span className="text-[10px]">{product.dimensions}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       {!batchMode && (
                         <button
                           onClick={() => handleGenerateSingle(product)}
                           disabled={loading}
-                          className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-all disabled:opacity-50"
+                          className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-[10px] font-bold transition-all disabled:opacity-50 shadow-sm flex-shrink-0"
                         >
                           Generate
                         </button>
@@ -565,134 +664,144 @@ export default function BarcodeGeneration() {
           </div>
         </div>
 
-        {/* Right: Generated Barcodes */}
-        <div className="space-y-4">
-          <div className="rounded-2xl bg-white p-6 border border-slate-200/80 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Barcode className="w-4 h-4 text-emerald-600" />
-                Generated Barcodes ({generatedBarcodes.length})
-              </h2>
+        {/* Right: Generated Barcodes - Compact Card */}
+        <div className="space-y-3">
+          <div className="rounded-2xl bg-white p-4 border border-slate-200 shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-md">
+                  <Barcode className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold">Generated Barcodes</div>
+                  <div className="text-[10px] text-slate-500">{generatedBarcodes.length} items</div>
+                </div>
+              </div>
               {generatedBarcodes.length > 0 && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <button
                     onClick={handleExport}
-                    className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-all"
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold transition-all"
                   >
-                    <Download className="w-3.5 h-3.5 inline mr-1" />
-                    Export CSV
+                    <Download className="w-3 h-3 inline mr-1" />
+                    Export
                   </button>
                   <button
                     onClick={handlePrintAll}
-                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-all"
+                    className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-[10px] font-bold transition-all shadow-sm"
                   >
-                    <Printer className="w-3.5 h-3.5 inline mr-1" />
-                    Print All
+                    <Printer className="w-3 h-3 inline mr-1" />
+                    Print
                   </button>
                 </div>
               )}
             </div>
 
-            <div className="space-y-3 max-h-[600px] overflow-y-auto">
+            <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
               {generatedBarcodes.length === 0 ? (
-                <div className="text-center py-12 text-slate-500 text-sm">
-                  <ScanBarcode className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-                  <p>No barcodes generated yet</p>
-                  <p className="text-xs mt-1">Select a product to generate a barcode</p>
+                <div className="text-center py-10 text-slate-500 text-xs">
+                  <ScanBarcode className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+                  <p className="font-bold text-slate-700">No barcodes yet</p>
+                  <p className="text-[10px]">Generate a barcode to get started</p>
                 </div>
               ) : (
-                generatedBarcodes.map(barcode => {
+                generatedBarcodes.map((barcode) => {
                   const product = barcode.products;
                   const productName = product ? `${product.brand || ''} ${product.model || ''}`.trim() : 'Unknown Product';
 
                   return (
-                    <div key={barcode.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold text-slate-900">{productName}</p>
-                          <p className="text-xs text-slate-500">SKU: {product?.sku || 'N/A'}</p>
-                          {barcode.batches?.batch_number && (
-                            <p className="text-xs text-slate-500">Batch: {barcode.batches.batch_number}</p>
-                          )}
+                    <div 
+                      key={barcode.id}
+                      className="p-3 rounded-lg border border-slate-200 bg-gradient-to-br from-white to-slate-50 hover:shadow-md hover:border-blue-200 transition-all"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-slate-900 truncate">{productName}</p>
+                          <div className="flex items-center gap-1.5 text-[10px] mt-0.5">
+                            <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-mono font-bold">
+                              {product?.sku || 'N/A'}
+                            </span>
+                            {barcode.batches?.batch_number && (
+                              <span className="px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 font-semibold">
+                                {barcode.batches.batch_number}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-[10px] font-mono font-bold bg-slate-200 text-slate-600 px-2 py-0.5 rounded">
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <span className="text-[9px] font-mono font-bold bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded">
                             {barcode.barcode_type}
                           </span>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                            barcode.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                            barcode.status === 'active' 
+                              ? 'bg-emerald-500 text-white' 
+                              : 'bg-slate-200 text-slate-600'
                           }`}>
                             {barcode.status}
                           </span>
                         </div>
                       </div>
 
-                      {/* Barcode + QR Display */}
-                      <div className="p-3 rounded-lg bg-white border border-slate-200 mb-3">
-                        <div className="flex gap-3 items-center">
-                          {/* CODE128 Barcode Visual */}
-                          <div className="flex-1">
-                            <div className="h-12 flex items-center justify-center gap-0.5 mb-2">
-                              {Array.from({ length: 32 }, (_, i) => (
+                      {/* Compact Barcode + QR Display */}
+                      <div className="p-2 rounded-lg bg-white border border-slate-200 mb-2">
+                        <div className="flex gap-2 items-center">
+                          <div className="flex-1 min-w-0">
+                            <div className="h-8 flex items-center justify-center gap-0.5 mb-1.5">
+                              {Array.from({ length: 24 }, (_, i) => (
                                 <div
                                   key={i}
-                                  className="bg-slate-950 h-full"
+                                  className="bg-slate-950 h-full rounded-sm"
                                   style={{ width: `${[2, 3, 1, 4, 2][i % 5]}px` }}
                                 />
                               ))}
                             </div>
-                            <p className="font-mono text-xs font-bold text-center tracking-wider text-slate-900">
+                            <p className="font-mono text-[10px] font-bold text-center text-slate-900 bg-slate-100 py-1 rounded">
                               {barcode.barcode_value}
                             </p>
                           </div>
 
-                          {/* QR Code */}
                           {barcode.qr_code_data && (
                             <div className="flex-shrink-0 text-center">
                               <img 
                                 src={barcode.qr_code_data} 
-                                alt="QR Code" 
-                                className="w-16 h-16 border border-slate-200 rounded"
+                                alt="QR" 
+                                className="w-12 h-12 rounded border border-slate-200"
                               />
-                              <p className="text-[9px] text-slate-500 mt-1">Scan to Trace</p>
+                              <p className="text-[8px] text-slate-500 mt-0.5">Scan</p>
                             </div>
                           )}
                         </div>
                       </div>
 
-                      {/* Actions */}
-                      <div className="flex items-center gap-2">
+                      {/* Compact Actions */}
+                      <div className="grid grid-cols-4 gap-1">
                         <button
                           onClick={() => handlePrintBarcode(barcode)}
-                          className="flex-1 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-all"
+                          className="px-2 py-1.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[10px] font-bold transition-all shadow-sm hover:shadow-md"
                         >
-                          <Printer className="w-3.5 h-3.5 inline mr-1" />
-                          Print
+                          <Printer className="w-3 h-3 mx-auto" />
                         </button>
                         <button
                           onClick={() => viewTraceability(barcode)}
-                          className="px-3 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs font-semibold transition-all"
-                          title="View Traceability"
+                          className="px-2 py-1.5 rounded-lg bg-blue-100 text-blue-700 text-[10px] font-bold transition-all hover:bg-blue-200"
                         >
-                          <ExternalLink className="w-3.5 h-3.5" />
+                          <ExternalLink className="w-3 h-3 mx-auto" />
                         </button>
                         <button
                           onClick={() => {
                             navigator.clipboard.writeText(barcode.barcode_value);
-                            setSuccess('Barcode copied to clipboard!');
+                            setSuccess('Copied!');
                             setTimeout(() => setSuccess(''), 2000);
                           }}
-                          className="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-all"
-                          title="Copy"
+                          className="px-2 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-[10px] font-bold transition-all hover:bg-slate-200"
                         >
-                          <Copy className="w-3.5 h-3.5" />
+                          <Copy className="w-3 h-3 mx-auto" />
                         </button>
                         <button
                           onClick={() => setDeleteConfirm(barcode.id)}
-                          className="px-3 py-2 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-700 text-xs font-semibold transition-all"
-                          title="Delete"
+                          className="px-2 py-1.5 rounded-lg bg-rose-100 text-rose-700 text-[10px] font-bold transition-all hover:bg-rose-200"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-3 h-3 mx-auto" />
                         </button>
                       </div>
                     </div>
@@ -702,74 +811,81 @@ export default function BarcodeGeneration() {
             </div>
           </div>
 
-          {/* Current Config Info */}
+          {/* Compact Premium Config Card */}
           {config && (
-            <div className="rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100 p-4 border border-slate-200">
-              <h3 className="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1">
-                <Settings className="w-3.5 h-3.5" />
-                Current Configuration
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-2xl bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-3 border-2 border-slate-700 shadow-xl shadow-slate-900/50"
+            >
+              <h3 className="text-xs font-bold text-white mb-2 flex items-center gap-1.5">
+                <Settings className="w-3 h-3" />
+                Configuration
               </h3>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <span className="text-slate-500">Format:</span>
-                  <span className="ml-2 font-semibold text-slate-900">{config.format}</span>
+              <div className="grid grid-cols-2 gap-2 text-[10px]">
+                <div className="p-2 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20">
+                  <span className="text-slate-300 block mb-0.5">Format</span>
+                  <span className="font-bold text-white">{config.format}</span>
                 </div>
-                <div>
-                  <span className="text-slate-500">Prefix:</span>
-                  <span className="ml-2 font-semibold text-slate-900">{config.prefix || 'None'}</span>
+                <div className="p-2 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20">
+                  <span className="text-slate-300 block mb-0.5">Prefix</span>
+                  <span className="font-bold text-white">{config.prefix || 'None'}</span>
                 </div>
-                <div>
-                  <span className="text-slate-500">Checksum:</span>
-                  <span className="ml-2 font-semibold text-slate-900">
-                    {config.include_checksum ? 'Yes' : 'No'}
+                <div className="p-2 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20">
+                  <span className="text-slate-300 block mb-0.5">Checksum</span>
+                  <span className="font-bold text-white">
+                    {config.include_checksum ? '✓ Yes' : '✗ No'}
                   </span>
                 </div>
-                <div>
-                  <span className="text-slate-500">QR Codes:</span>
-                  <span className="ml-2 font-semibold text-emerald-700">Enabled</span>
+                <div className="p-2 rounded-lg bg-gradient-to-r from-emerald-500/20 to-teal-500/20 backdrop-blur-sm border border-emerald-400/30">
+                  <span className="text-emerald-300 block mb-0.5">QR Codes</span>
+                  <span className="font-bold text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 className="w-2.5 h-2.5" />
+                    Enabled
+                  </span>
                 </div>
               </div>
-            </div>
+            </motion.div>
           )}
         </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
+      {/* Compact Delete Confirmation Modal */}
       <AnimatePresence>
         {deleteConfirm && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             onClick={() => setDeleteConfirm(null)}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl"
+              className="bg-white rounded-2xl p-5 max-w-md w-full shadow-2xl border-2 border-slate-200"
             >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center">
-                  <AlertTriangle className="w-6 h-6 text-rose-600" />
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center shadow-lg shadow-rose-500/40">
+                  <AlertTriangle className="w-5 h-5 text-white" />
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900">Delete Barcode?</h3>
-                  <p className="text-sm text-slate-500">This action cannot be undone</p>
+                <div className="flex-1">
+                  <h3 className="text-base font-bold text-slate-900 mb-1">Delete Barcode?</h3>
+                  <p className="text-xs text-slate-600">This action cannot be undone. The barcode will be permanently removed.</p>
                 </div>
               </div>
-              <div className="flex gap-3">
+              <div className="flex gap-2">
                 <button
                   onClick={() => setDeleteConfirm(null)}
-                  className="flex-1 px-4 py-2 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-all"
+                  className="flex-1 px-3 py-2 rounded-lg border-2 border-slate-200 text-slate-700 text-sm font-bold hover:bg-slate-50 transition-all duration-300"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={() => handleDeleteBarcode(deleteConfirm)}
-                  className="flex-1 px-4 py-2 rounded-xl bg-rose-600 text-white font-semibold hover:bg-rose-700 transition-all"
+                  className="flex-1 px-3 py-2 rounded-lg bg-gradient-to-r from-rose-600 to-red-600 text-white text-sm font-bold hover:from-rose-700 hover:to-red-700 transition-all duration-300 shadow-lg shadow-rose-500/40"
                 >
                   Delete
                 </button>
@@ -778,6 +894,24 @@ export default function BarcodeGeneration() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Custom Scrollbar Styles */}
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgb(241 245 249);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: linear-gradient(to bottom, rgb(59 130 246), rgb(79 70 229));
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(to bottom, rgb(37 99 235), rgb(67 56 202));
+        }
+      `}</style>
     </div>
   );
 }

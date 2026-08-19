@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '../config/supabase.js';
 import { logger } from '../utils/logger.js';
-import * as barcodeService from '../services/barcodeService.js';
+// EMERGENCY: Use in-memory service for deadline demo (no database required)
+import * as barcodeService from '../services/barcodeServiceSimple.js';
 
 // ============================================================================
 // BARCODE CONFIGURATION ENDPOINTS
@@ -167,11 +168,52 @@ export async function validateBarcode(req, res, next) {
  */
 export async function createBarcode(req, res, next) {
   try {
-    const { productId, batchId, inventoryUnitId, quantity } = req.body;
+    const { productId, batchId, inventoryUnitId, quantity, productData } = req.body;
     const userId = req.user?.id;
 
     if (!productId) {
       return res.status(400).json({ error: 'Product ID is required' });
+    }
+
+    // Use provided productData or try to fetch from database
+    let enrichedProductData = null;
+    
+    if (productData && productData.sku) {
+      // Product data provided from frontend - use it directly
+      enrichedProductData = {
+        sku: productData.sku,
+        brand: productData.brand || 'Red Indian Customs',
+        model: productData.model || 'Unknown Model',
+        name: productData.name || productData.model || 'Unknown Product',
+        dimensions: productData.dimensions || '',
+        category: productData.category || 'General'
+      };
+      logger.info(`📦 Using provided product data: ${enrichedProductData.sku} - ${enrichedProductData.brand} ${enrichedProductData.model}`);
+    } else {
+      // Try to fetch from database
+      try {
+        const { data: product, error } = await supabaseAdmin
+          .from('products')
+          .select('id, sku, brand, model, product_name, name, dimensions, category')
+          .eq('id', productId)
+          .single();
+        
+        if (error) {
+          logger.warn(`Product fetch error for ID ${productId}:`, error.message);
+        } else if (product) {
+          enrichedProductData = {
+            sku: product.sku || `SKU-${productId.slice(0, 8)}`,
+            brand: product.brand || 'Red Indian Customs',
+            model: product.model || product.product_name || product.name || 'Unknown Model',
+            name: product.product_name || product.name || product.model || 'Unknown Product',
+            dimensions: product.dimensions || '',
+            category: product.category || 'General'
+          };
+          logger.info(`✅ Fetched product data from database: ${enrichedProductData.sku} - ${enrichedProductData.brand} ${enrichedProductData.model}`);
+        }
+      } catch (err) {
+        logger.warn('Could not fetch product data:', err.message);
+      }
     }
 
     // Batch generation
@@ -181,6 +223,7 @@ export async function createBarcode(req, res, next) {
         batchId,
         quantity: parseInt(quantity, 10),
         userId,
+        productData: enrichedProductData,
       });
 
       return res.status(201).json({
@@ -195,6 +238,7 @@ export async function createBarcode(req, res, next) {
       batchId,
       inventoryUnitId,
       userId,
+      productData: enrichedProductData,
     });
 
     return res.status(201).json({

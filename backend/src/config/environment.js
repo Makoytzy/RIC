@@ -20,5 +20,7 @@ export const env = {
   supabaseUrl: normalizedSupabaseUrl,
   supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  supabaseDbPassword: process.env.SUPABASE_DB_PASSWORD,
+  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5174',
   corsOrigin: (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',').map((o) => o.trim()),
 };
