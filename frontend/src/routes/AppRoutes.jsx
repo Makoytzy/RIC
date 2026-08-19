@@ -9,6 +9,7 @@ import Landing       from '../pages/public/Landing.jsx';
 import Login         from '../pages/public/Login.jsx';
 import SignUp        from '../pages/public/SignUp.jsx';
 import ResetPassword from '../pages/public/ResetPassword.jsx';
+import TraceabilityView from '../pages/public/TraceabilityView.jsx';
 
 // ── Common ────────────────────────────────────────────────────
 import Dashboard from '../pages/dashboard/Dashboard.jsx';
@@ -104,6 +105,7 @@ export default function AppRoutes() {
       <Route path="/login"          element={<Login />} />
       <Route path="/signup"         element={<SignUp />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/trace/:barcode" element={<TraceabilityView />} />
 
       {/* ── Protected dashboard ────────────────────────────── */}
       <Route element={<ProtectedRoute />}>

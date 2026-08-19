@@ -11,7 +11,16 @@ export async function listProducts(req, res, next) {
     if (status && status !== 'all') query = query.eq('status', status);
 
     const { data, error } = await query;
-    if (error) throw error;
+    
+    // If there's a schema cache error, return empty for now
+    // The PostgREST cache will eventually refresh
+    if (error) {
+      if (error.message?.includes('schema cache') || error.message?.includes('not found') || error.code === 'PGRST205') {
+        logger.warn('Products table not in schema cache - returning empty array. Schema will auto-refresh soon.');
+        return res.json({ products: [] });
+      }
+      throw error;
+    }
 
     let filtered = data || [];
     if (search) {

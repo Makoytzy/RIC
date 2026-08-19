@@ -16,6 +16,7 @@ import supplierRoutes from './routes/supplierRoutes.js';
 import productRoutes from './routes/productRoutes.js';
 import capacityRuleRoutes from './routes/capacityRuleRoutes.js';
 import barcodeRoutes from './routes/barcodeRoutes.js';
+import traceabilityRoutes from './routes/traceabilityRoutes.js';
 import auditLogRoutes from './routes/auditLogRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import employeeRoutes from './routes/employeeRoutes.js';
@@ -47,6 +48,7 @@ app.use('/api/warehouse', warehouseRoutes);
 // Capacity Rules & Barcodes
 app.use('/api/capacity-rules', capacityRuleRoutes);
 app.use('/api/barcodes', barcodeRoutes);
+app.use('/api/traceability', traceabilityRoutes);
 
 // Orders & Returns
 app.use('/api/orders', orderRoutes);
