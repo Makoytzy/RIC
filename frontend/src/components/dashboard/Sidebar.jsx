@@ -26,6 +26,17 @@ import {
   Ruler,
   ScrollText,
   Layers,
+  Ship,
+  PackageOpen,
+  FileText,
+  PackagePlus,
+  BookOpen,
+  Search,
+  QrCode,
+  Printer,
+  ClipboardList,
+  FileCheck,
+  ShoppingBag,
 } from 'lucide-react';
 import logo from '../../Image/logo.jpg';
 import { useAuth } from '../../hooks/useAuth';
@@ -84,6 +95,122 @@ const NAVIGATION = [
         icon: RotateCcw,
         path: '/returns',
         roles: ['operational_staff', 'sales_staff', 'warehouse_staff'],
+      },
+    ],
+  },
+  // NEW: Shipment & Cargo Section (Operational Staff Only)
+  {
+    id: 'shipment-cargo',
+    label: 'SHIPMENT & CARGO',
+    type: 'section',
+    items: [
+      {
+        id: 'incoming-shipments',
+        label: 'Incoming Shipments',
+        icon: Ship,
+        path: '/shipments/incoming',
+        roles: ['operational_staff'],
+      },
+      {
+        id: 'all-shipments',
+        label: 'All Shipments',
+        icon: PackageOpen,
+        path: '/shipments',
+        roles: ['operational_staff'],
+      },
+      {
+        id: 'process-returns',
+        label: 'Process Returns',
+        icon: RotateCcw,
+        path: '/shipments/returns',
+        roles: ['operational_staff'],
+      },
+    ],
+  },
+  // NEW: Product Catalog Section (Operational Staff Only)
+  {
+    id: 'product-catalog',
+    label: 'PRODUCT CATALOG',
+    type: 'section',
+    items: [
+      {
+        id: 'register-products',
+        label: 'Register Products',
+        icon: PackagePlus,
+        path: '/products/register',
+        roles: ['operational_staff'],
+      },
+      {
+        id: 'master-catalog',
+        label: 'Master Catalog',
+        icon: BookOpen,
+        path: '/products/catalog',
+        roles: ['operational_staff'],
+      },
+      {
+        id: 'product-lookup',
+        label: 'Product Lookup',
+        icon: Search,
+        path: '/products/lookup',
+        roles: ['operational_staff'],
+      },
+    ],
+  },
+  // NEW: Barcode & Labels Section (Operational Staff Only)
+  {
+    id: 'barcode-labels',
+    label: 'BARCODE & LABELS',
+    type: 'section',
+    items: [
+      {
+        id: 'generate-barcodes',
+        label: 'Generate Barcodes',
+        icon: QrCode,
+        path: '/barcode/generate',
+        roles: ['operational_staff'],
+      },
+      {
+        id: 'scan-products',
+        label: 'Scan Products',
+        icon: Barcode,
+        path: '/barcode/scan',
+        roles: ['operational_staff'],
+      },
+      {
+        id: 'print-labels',
+        label: 'Print Labels',
+        icon: Printer,
+        path: '/barcode/print',
+        roles: ['operational_staff'],
+      },
+    ],
+  },
+  // NEW: Batch & Orders Section (Operational Staff Only)
+  {
+    id: 'batch-orders',
+    label: 'BATCH & ORDERS',
+    type: 'section',
+    items: [
+      {
+        id: 'manage-batches',
+        label: 'Manage Batches',
+        icon: Layers,
+        path: '/batches/manage',
+        roles: ['operational_staff'],
+      },
+      {
+        id: 'waybills-docs',
+        label: 'Waybills & Docs',
+        icon: FileText,
+        path: '/batches/waybills',
+        roles: ['operational_staff'],
+      },
+      {
+        id: 'order-processing',
+        label: 'Order Processing',
+        icon: ShoppingBag,
+        path: '/orders/process',
+        roles: ['operational_staff'],
       },
     ],
   },
@@ -273,7 +400,7 @@ function SidebarContent({ isActive, expandedSections, toggleSection, filteredNav
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3 scrollbar-thin">
+      <nav className="flex-1 overflow-y-auto py-4 px-3 custom-scrollbar">
         {filteredNavigation.map((item) => {
           if (!item.type) {
             return (
@@ -350,7 +477,15 @@ function SidebarContent({ isActive, expandedSections, toggleSection, filteredNav
 export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation();
   const { hasRole, user: authUser, roles, signOut } = useAuth();
-  const [expandedSections, setExpandedSections] = useState(['operations', 'reports', 'management']);
+  const [expandedSections, setExpandedSections] = useState([
+    'operations', 
+    'shipment-cargo', 
+    'product-catalog', 
+    'barcode-labels', 
+    'batch-orders', 
+    'reports', 
+    'management'
+  ]);
 
   const toggleSection = (sectionId) => {
     setExpandedSections((prev) =>
