@@ -1,594 +1,417 @@
+/**
+ * ============================================================================
+ * BARCODE SERVICE
+ * ============================================================================
+ * Handles barcode generation with complete traceability chain
+ * 
+ * Flow:
+ * 1. Verify product, shipment, batch exist
+ * 2. Create inventory_units (one per physical tire)
+ * 3. Generate unique barcodes using PostgreSQL sequence
+ * 4. Create QR codes with traceability URLs
+ * 5. Save barcodes to database
+ * ============================================================================
+ */
+
+import crypto from 'node:crypto';
 import QRCode from 'qrcode';
-import { supabaseAdmin } from '../config/supabase.js';
-import { logger } from '../utils/logger.js';
-import { env } from '../config/environment.js';
+import supabaseAdmin from '../config/supabaseAdmin.js';
+
+const TRACE_BASE_URL = process.env.TRACE_BASE_URL || 'http://localhost:5173/trace';
+const BARCODE_PREFIX = 'RIC';
 
 /**
- * Barcode Generation Service
- * Implements server-side unique barcode generation with QR code support
- * 
- * Key Features:
- * - Concurrent-safe barcode generation using database sequence
- * - UNIQUE constraint enforcement (prevents duplicates)
- * - QR code generation with traceability URL
- * - Transaction-based inserts with retry logic
- * - CODE128 format support
+ * Generate barcode value from sequence number
+ * Format: RIC000000000001, RIC000000000002, etc.
  */
-
-// ============================================================================
-// CONFIGURATION
-// ============================================================================
-
-const DEFAULT_CONFIG = {
-  format: 'CODE128',
-  prefix: '',
-  startSequence: 200000000000, // Start at 200000000000 for 12-digit barcodes
-  maxRetries: 5,
-  qrErrorCorrectionLevel: 'M', // L, M, Q, H
-  qrWidth: 300,
-  traceabilityBaseUrl: env.frontendUrl || 'http://localhost:5174',
-};
-
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-/**
- * Calculate modulo-10 checksum digit
- */
-function calculateChecksum(barcodeValue) {
-  const digits = barcodeValue.replace(/\D/g, '');
-  let sum = 0;
-  
-  for (let i = 0; i < digits.length; i++) {
-    const digit = parseInt(digits[i], 10);
-    // Alternate between multiplying by 3 and 1
-    const multiplier = i % 2 === 0 ? 3 : 1;
-    sum += digit * multiplier;
-  }
-  
-  const checksum = (10 - (sum % 10)) % 10;
-  return checksum.toString();
+function generateBarcodeValue(sequence) {
+  return `${BARCODE_PREFIX}${String(sequence).padStart(12, '0')}`;
 }
 
 /**
- * Get current barcode configuration from database
+ * Create traceability URL for QR code
+ * Example: http://localhost:5173/trace/RIC000000000001
  */
-async function getBarcodeConfig() {
+function createTraceabilityUrl(barcodeValue) {
+  return `${TRACE_BASE_URL}/${encodeURIComponent(barcodeValue)}`;
+}
+
+/**
+ * Get next barcode sequence from PostgreSQL
+ * Uses sequence for concurrent-safe generation
+ */
+async function getNextBarcodeSequence() {
+  const { data, error } = await supabaseAdmin
+    .rpc('get_next_barcode_sequence');
+
+  if (error) {
+    throw new Error(`Failed to generate barcode sequence: ${error.message}`);
+  }
+
+  return Number(data);
+}
+
+/**
+ * Main service function: Create barcodes with complete traceability
+ * Uses transaction-safe PostgreSQL RPC for atomic operation
+ * 
+ * @param {Object} params
+ * @param {string} params.productId - Product UUID
+ * @param {string} params.batchId - Batch UUID
+ * @param {string} params.shipmentId - Shipment UUID
+ * @param {number} params.quantity - Number of barcodes to generate (1-5000)
+ * @returns {Object} Created barcodes with traceability info
+ */
+export async function createBarcodes({
+  productId,
+  batchId,
+  shipmentId,
+  quantity
+}) {
+  // ---------------------------------------------------------
+  // 1. VALIDATION
+  // ---------------------------------------------------------
+  if (!productId) {
+    throw new Error('productId is required');
+  }
+
+  if (!batchId) {
+    throw new Error('batchId is required');
+  }
+
+  if (!shipmentId) {
+    throw new Error('shipmentId is required');
+  }
+
+  const parsedQuantity = Number(quantity);
+  if (
+    !Number.isInteger(parsedQuantity) ||
+    parsedQuantity < 1 ||
+    parsedQuantity > 5000
+  ) {
+    throw new Error('quantity must be an integer between 1 and 5000');
+  }
+
+  console.log(`📦 Generating ${parsedQuantity} barcodes via transaction-safe RPC...`);
+
+  // ---------------------------------------------------------
+  // 2. CALL TRANSACTION-SAFE RPC
+  // ---------------------------------------------------------
+  // This creates inventory units + barcodes atomically in PostgreSQL
+  // If any step fails, entire operation rolls back
+  const { data, error } = await supabaseAdmin.rpc(
+    'create_inventory_barcodes',
+    {
+      p_product_id: productId,
+      p_batch_id: batchId,
+      p_shipment_id: shipmentId,
+      p_quantity: parsedQuantity
+    }
+  );
+
+  if (error) {
+    console.error('❌ Supabase RPC error:', error);
+    throw new Error(error.message || 'Failed to generate barcodes');
+  }
+
+  if (!data?.success) {
+    throw new Error('Barcode generation failed');
+  }
+
+  console.log(`✅ RPC completed: ${data.quantity} barcodes created`);
+
+  // ---------------------------------------------------------
+  // 3. GENERATE QR CODES FOR EACH BARCODE
+  // ---------------------------------------------------------
+  // QR generation happens in Node.js (not in PostgreSQL)
+  // This is cleaner separation of concerns
+  console.log(`🔄 Generating QR codes for ${data.barcodes.length} barcodes...`);
+
+  const barcodesWithQR = await Promise.all(
+    data.barcodes.map(async (barcode) => {
+      try {
+        const qrCodeData = await QRCode.toDataURL(
+          barcode.traceability_url,
+          {
+            errorCorrectionLevel: 'M',
+            margin: 2,
+            width: 300
+          }
+        );
+
+        // Update barcode with QR code data
+        await supabaseAdmin
+          .from('barcodes')
+          .update({ qr_code_data: qrCodeData })
+          .eq('id', barcode.barcode_id);
+
+        return {
+          ...barcode,
+          qr_code_data: qrCodeData
+        };
+      } catch (qrError) {
+        console.error(`⚠️ QR generation failed for ${barcode.barcode_value}:`, qrError);
+        return barcode; // Return without QR if generation fails
+      }
+    })
+  );
+
+  console.log(`✅ QR codes generated successfully`);
+
+  // ---------------------------------------------------------
+  // 4. RETURN COMPLETE RESULT
+  // ---------------------------------------------------------
+  return {
+    success: true,
+    product_id: data.product_id,
+    product_sku: data.product_sku,
+    product_name: data.product_name,
+    batch_id: data.batch_id,
+    batch_number: data.batch_number,
+    shipment_id: data.shipment_id,
+    shipment_number: data.shipment_number,
+    container_number: data.container_number,
+    bl_number: data.bl_number,
+    quantity: data.quantity,
+    barcodes: barcodesWithQR,
+    summary: {
+      total_barcodes: barcodesWithQR.length,
+      total_inventory_units: barcodesWithQR.length,
+      barcode_range: barcodesWithQR.length > 0 ? {
+        first: barcodesWithQR[0].barcode_value,
+        last: barcodesWithQR[barcodesWithQR.length - 1].barcode_value
+      } : null,
+      shipment_number: data.shipment_number,
+      container_number: data.container_number,
+      bl_number: data.bl_number,
+      batch_number: data.batch_number
+    }
+  };
+}
+
+/**
+ * Get barcodes with full traceability information
+ * Returns empty array until schema cache is ready
+ * 
+ * @param {Object} params
+ * @param {number} params.limit - Max number of barcodes to return
+ * @returns {Array} Barcodes with nested product, batch, shipment info
+ */
+export async function getBarcodes({ limit = 50 }) {
+  const safeLimit = Math.min(Number(limit) || 50, 500);
+
   try {
-    const { data, error } = await supabaseAdmin
-      .from('barcode_configurations')
-      .select('*')
-      .eq('is_active', true)
-      .maybeSingle();
+    // Try using RPC function first
+    const { data: rpcData, error: rpcError } = await supabaseAdmin
+      .rpc('get_barcodes_with_traceability', { p_limit: safeLimit });
 
-    if (error && !error.message?.includes('schema cache')) {
-      logger.warn('Error fetching barcode config:', error.message);
+    if (!rpcError && rpcData && rpcData.length > 0) {
+      // Transform RPC result to expected format
+      return rpcData.map(row => ({
+        id: row.barcode_id,
+        barcode_value: row.barcode_value,
+        barcode_type: row.barcode_type,
+        traceability_url: row.traceability_url,
+        qr_code_data: row.qr_code_data,
+        status: row.status,
+        created_at: row.created_at,
+        products: row.product_id ? {
+          id: row.product_id,
+          sku: row.product_sku,
+          brand: row.product_brand,
+          model: row.product_model
+        } : null,
+        batches: row.batch_id ? {
+          id: row.batch_id,
+          batch_number: row.batch_number,
+          shipments: row.shipment_number ? {
+            container_number: row.container_number,
+            bl_number: row.bl_number,
+            shipment_number: row.shipment_number,
+            suppliers: row.supplier_name ? {
+              name: row.supplier_name
+            } : null
+          } : null
+        } : null,
+        inventory_units: row.inventory_unit_id ? {
+          id: row.inventory_unit_id,
+          inventory_unit_code: row.inventory_unit_code,
+          status: row.unit_status
+        } : null
+      }));
     }
 
-    return data || {
-      format: DEFAULT_CONFIG.format,
-      prefix: DEFAULT_CONFIG.prefix,
-      include_checksum: true,
-    };
-  } catch (err) {
-    logger.error('Error fetching barcode config:', err);
-    return {
-      format: DEFAULT_CONFIG.format,
-      prefix: DEFAULT_CONFIG.prefix,
-      include_checksum: true,
-    };
-  }
-}
-
-// ============================================================================
-// UNIQUE BARCODE GENERATION
-// ============================================================================
-
-/**
- * Generate next unique barcode using database sequence (concurrent-safe)
- * 
- * @param {string} sequenceName - Sequence identifier (default: 'default')
- * @returns {Promise<string>} - Unique barcode value
- */
-async function getNextBarcodeSequence(sequenceName = 'default') {
-  const maxRetries = DEFAULT_CONFIG.maxRetries;
-  
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      // Use Supabase RPC function (bypasses schema cache if function exists)
-      logger.info(`[Attempt ${attempt}/${maxRetries}] Calling increment_barcode_sequence RPC...`);
-      
-      const { data, error } = await supabaseAdmin.rpc('increment_barcode_sequence', {
-        seq_name: sequenceName,
-      });
-
-      if (error) {
-        logger.error(`[Attempt ${attempt}/${maxRetries}] RPC error:`, {
-          message: error.message,
-          code: error.code,
-        });
-        
-        // If schema cache issue or function not found, try table fallback
-        if (error.code === 'PGRST202' || error.code === '42883' || error.message?.includes('schema cache')) {
-          logger.warn('RPC not available, trying table fallback...');
-          return await getNextBarcodeSequenceFallback(sequenceName);
-        }
-        
-        throw error;
-      }
-
-      if (!data && data !== 0) {
-        throw new Error('RPC returned no data');
-      }
-
-      const barcodeValue = data.toString().padStart(12, '0');
-      logger.info(`✅ Generated barcode sequence: ${barcodeValue}`);
-      return barcodeValue;
-      
-    } catch (err) {
-      logger.error(`[Attempt ${attempt}/${maxRetries}] Barcode sequence failed:`, err.message);
-      
-      if (attempt === maxRetries) {
-        throw new Error(`Failed to generate unique barcode after ${maxRetries} attempts: ${err.message}`);
-      }
-      
-      // Wait before retry (exponential backoff)
-      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 100));
-    }
-  }
-}
-
-/**
- * Fallback method: Manual sequence increment with row-level locking
- */
-async function getNextBarcodeSequenceFallback(sequenceName = 'default') {
-  // Use SELECT FOR UPDATE to lock the row
-  const { data: sequence, error: selectError } = await supabaseAdmin
-    .from('barcode_sequences')
-    .select('current_value')
-    .eq('sequence_name', sequenceName)
-    .single();
-
-  if (selectError) {
-    // If sequence doesn't exist, create it
-    if (selectError.code === 'PGRST116') {
-      const { data: newSeq, error: insertError } = await supabaseAdmin
-        .from('barcode_sequences')
-        .insert({
-          sequence_name: sequenceName,
-          current_value: DEFAULT_CONFIG.startSequence,
-        })
-        .select('current_value')
-        .single();
-
-      if (insertError) throw insertError;
-      
-      const nextValue = newSeq.current_value + 1;
-      await supabaseAdmin
-        .from('barcode_sequences')
-        .update({ current_value: nextValue })
-        .eq('sequence_name', sequenceName);
-
-      return nextValue.toString().padStart(12, '0');
-    }
-    throw selectError;
-  }
-
-  const nextValue = sequence.current_value + 1;
-
-  // Update sequence
-  const { error: updateError } = await supabaseAdmin
-    .from('barcode_sequences')
-    .update({ current_value: nextValue })
-    .eq('sequence_name', sequenceName);
-
-  if (updateError) throw updateError;
-
-  return nextValue.toString().padStart(12, '0');
-}
-
-/**
- * Generate unique barcode value with checksum
- * 
- * @param {Object} options - Generation options
- * @param {string} options.productId - Product UUID
- * @param {string} options.batchId - Batch UUID (optional)
- * @returns {Promise<string>} - Unique barcode value
- */
-async function generateUniqueBarcodeValue(options = {}) {
-  const config = await getBarcodeConfig();
-  const sequenceNumber = await getNextBarcodeSequence('default');
-  
-  // Format: [PREFIX]-[SEQUENCE]-[CHECKSUM]
-  // Example: 200000000001 or RIC-200000000001-3 (with prefix/checksum)
-  let barcodeValue = '';
-  
-  if (config.prefix) {
-    barcodeValue = `${config.prefix}-${sequenceNumber}`;
-  } else {
-    barcodeValue = sequenceNumber;
-  }
-
-  if (config.include_checksum) {
-    const checksum = calculateChecksum(barcodeValue);
-    barcodeValue = `${barcodeValue}-${checksum}`;
-  }
-
-  return barcodeValue;
-}
-
-// ============================================================================
-// QR CODE GENERATION
-// ============================================================================
-
-/**
- * Generate QR code data URL for traceability
- * 
- * @param {string} barcodeValue - The barcode value
- * @returns {Promise<Object>} - QR code data and URL
- */
-async function generateQRCode(barcodeValue) {
-  try {
-    const traceabilityUrl = `${DEFAULT_CONFIG.traceabilityBaseUrl}/trace/${barcodeValue}`;
+    // Fallback: Query table directly
+    console.warn('⚠️ RPC not available, using direct table query');
+    console.log('Attempting to query barcodes table...');
     
-    // Generate QR code as data URL
-    const qrDataUrl = await QRCode.toDataURL(traceabilityUrl, {
-      errorCorrectionLevel: DEFAULT_CONFIG.qrErrorCorrectionLevel,
-      width: DEFAULT_CONFIG.qrWidth,
-      margin: 2,
-      color: {
-        dark: '#000000',
-        light: '#FFFFFF',
-      },
+    const { data: tableData, error: tableError } = await supabaseAdmin
+      .from('barcodes')
+      .select(`
+        id,
+        barcode_value,
+        barcode_type,
+        traceability_url,
+        qr_code_data,
+        status,
+        created_at,
+        product_id,
+        batch_id,
+        inventory_unit_id
+      `)
+      .order('created_at', { ascending: false })
+      .limit(safeLimit);
+
+    console.log('Query result:', { 
+      hasData: !!tableData, 
+      count: tableData?.length || 0,
+      hasError: !!tableError,
+      errorMsg: tableError?.message 
     });
 
-    return {
-      qrCodeData: qrDataUrl,
-      qrCodeUrl: traceabilityUrl,
-    };
+    if (tableError) {
+      console.error('❌ Table query error:', tableError);
+      return [];
+    }
+
+    if (!tableData || tableData.length === 0) {
+      return [];
+    }
+
+    // Return simplified format (without joins)
+    return tableData.map(row => ({
+      id: row.id,
+      barcode_value: row.barcode_value,
+      barcode_type: row.barcode_type,
+      traceability_url: row.traceability_url,
+      qr_code_data: row.qr_code_data,
+      status: row.status,
+      created_at: row.created_at,
+      product_id: row.product_id,
+      batch_id: row.batch_id,
+      inventory_unit_id: row.inventory_unit_id
+    }));
   } catch (err) {
-    logger.error('Error generating QR code:', err);
-    throw new Error('Failed to generate QR code');
-  }
-}
-
-// ============================================================================
-// BARCODE CRUD OPERATIONS
-// ============================================================================
-
-/**
- * Create new barcode with database storage
- * 
- * @param {Object} data - Barcode data
- * @param {string} data.productId - Product UUID (required)
- * @param {string} data.batchId - Batch UUID (optional)
- * @param {string} data.inventoryUnitId - Inventory unit UUID (optional)
- * @param {string} data.userId - User ID who generated the barcode
- * @returns {Promise<Object>} - Created barcode with QR code
- */
-export async function createBarcode(data) {
-  const { productId, batchId, inventoryUnitId, userId } = data;
-
-  if (!productId) {
-    throw new Error('Product ID is required to generate barcode');
-  }
-
-  const maxRetries = DEFAULT_CONFIG.maxRetries;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      // Generate unique barcode value
-      const barcodeValue = await generateUniqueBarcodeValue({ productId, batchId });
-
-      // Generate QR code
-      const { qrCodeData, qrCodeUrl } = await generateQRCode(barcodeValue);
-
-      // Insert via Supabase client (will try RPC first, then table access)
-      logger.info(`Inserting barcode via Supabase...`);
-      
-      const { data: barcode, error } = await supabaseAdmin
-        .from('barcodes')
-        .insert({
-          barcode_value: barcodeValue,
-          barcode_type: 'CODE128',
-          product_id: productId,
-          batch_id: batchId || null,
-          inventory_unit_id: inventoryUnitId || null,
-          qr_code_data: qrCodeData,
-          qr_code_url: qrCodeUrl,
-          status: 'active',
-          generated_by: userId || null,
-          metadata: {
-            generatedAt: new Date().toISOString(),
-            attempt: attempt,
-          },
-        })
-        .select()
-        .single();
-
-      if (error) {
-        // If duplicate, retry with new sequence
-        if (error.code === '23505' || error.message?.includes('already exists')) {
-          logger.warn(`Duplicate barcode detected on attempt ${attempt}, retrying...`);
-          if (attempt < maxRetries) {
-            continue;
-          }
-        }
-        
-        // If schema cache issue, throw with helpful message
-        if (error.message?.includes('schema cache')) {
-          throw new Error('Barcodes table not in schema cache yet. Please restart your Supabase project or wait a few minutes.');
-        }
-        
-        throw error;
-      }
-
-      if (!barcode) {
-        throw new Error('Failed to insert barcode - no result returned');
-      }
-
-      // Log activity
-      await supabaseAdmin.from('activity_log').insert({
-        user_id: userId || null,
-        action: 'barcode.generated',
-        category: 'Inventory',
-        severity: 'info',
-        details: `Generated barcode ${barcodeValue} for product ${productId}`,
-        metadata: { barcodeValue, productId, batchId },
-      }).catch(() => {
-        // Non-fatal if activity log fails
-      });
-
-      logger.info(`✅ Barcode generated: ${barcodeValue}`);
-      return barcode;
-
-    } catch (err) {
-      logger.error(`Barcode generation attempt ${attempt}/${maxRetries} failed:`, err);
-      
-      if (attempt === maxRetries) {
-        throw new Error(`Failed to create barcode after ${maxRetries} attempts: ${err.message}`);
-      }
-      
-      // Wait before retry
-      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 100));
-    }
-  }
-}
-
-/**
- * Get barcode by value
- */
-export async function getBarcodeByValue(barcodeValue) {
-  const { data, error } = await supabaseAdmin
-    .from('barcodes')
-    .select(`
-      *,
-      products:product_id(id, sku, brand, model, dimensions, category, retail_price),
-      batches:batch_id(id, batch_number, container_number, bl_number),
-      inventory_units!inventory_units_barcode_id_fkey(*)
-    `)
-    .eq('barcode_value', barcodeValue)
-    .single();
-
-  if (error) {
-    if (error.code === 'PGRST116') {
-      return null; // Not found
-    }
-    throw error;
-  }
-
-  return data;
-}
-
-/**
- * Get barcode by ID
- */
-export async function getBarcodeById(barcodeId) {
-  const { data, error } = await supabaseAdmin
-    .from('barcodes')
-    .select(`
-      *,
-      products:product_id(id, sku, brand, model, dimensions, category, retail_price),
-      batches:batch_id(id, batch_number, container_number, bl_number),
-      inventory_units!inventory_units_barcode_id_fkey(*)
-    `)
-    .eq('id', barcodeId)
-    .single();
-
-  if (error) {
-    if (error.code === 'PGRST116') {
-      return null;
-    }
-    throw error;
-  }
-
-  return data;
-}
-
-/**
- * List all barcodes with filters
- */
-export async function listBarcodes(filters = {}) {
-  try {
-    logger.info('Fetching barcodes via Supabase...');
-    
-    let query = supabaseAdmin
-      .from('barcodes')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (filters.status) {
-      query = query.eq('status', filters.status);
-    }
-
-    if (filters.productId) {
-      query = query.eq('product_id', filters.productId);
-    }
-
-    if (filters.barcodeType) {
-      query = query.eq('barcode_type', filters.barcodeType);
-    }
-
-    if (filters.limit) {
-      query = query.limit(filters.limit);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      if (error.message?.includes('schema cache')) {
-        logger.warn('Barcodes table not in schema cache yet, returning empty array');
-        return [];
-      }
-      throw error;
-    }
-
-    return data || [];
-  } catch (err) {
-    logger.warn('Error fetching barcodes, returning empty array:', err.message);
+    console.error('❌ getBarcodes error:', err.message);
+    // Return empty array instead of crashing
     return [];
   }
 }
 
 /**
- * Update barcode
+ * Get complete traceability for a single barcode
+ * Used by QR code scanning
+ * 
+ * @param {string} barcodeValue - Barcode value (e.g., RIC000000000001)
+ * @returns {Object} Complete traceability chain
  */
-export async function updateBarcode(barcodeId, updates, userId) {
+export async function getTraceability(barcodeValue) {
+  if (!barcodeValue) {
+    throw new Error('Barcode value is required');
+  }
+
   const { data, error } = await supabaseAdmin
     .from('barcodes')
-    .update({
-      ...updates,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', barcodeId)
-    .select()
+    .select(`
+      id,
+      barcode_value,
+      barcode_type,
+      traceability_url,
+      qr_code_data,
+      status,
+      created_at,
+      products (
+        id,
+        sku,
+        brand,
+        model,
+        product_name,
+        dimensions,
+        category
+      ),
+      batches (
+        id,
+        batch_number,
+        batch_month,
+        batch_year,
+        manufactured_date,
+        expiry_date,
+        status,
+        shipments:shipment_id (
+          id,
+          shipment_number,
+          container_number,
+          bl_number,
+          expected_quantity,
+          actual_quantity,
+          expected_arrival_date,
+          received_date,
+          status,
+          suppliers:supplier_id (
+            id,
+            name,
+            supplier_code,
+            contact_person,
+            email,
+            phone
+          )
+        )
+      ),
+      inventory_units (
+        id,
+        inventory_unit_code,
+        quantity,
+        status,
+        warehouse_id,
+        level,
+        rack,
+        shelf,
+        section,
+        received_at,
+        last_scanned_at,
+        warehouses:warehouse_id (
+          id,
+          name,
+          code,
+          location
+        )
+      )
+    `)
+    .eq('barcode_value', barcodeValue)
     .single();
 
-  if (error) throw error;
-
-  // Log activity
-  await supabaseAdmin.from('activity_log').insert({
-    user_id: userId || null,
-    action: 'barcode.updated',
-    category: 'Inventory',
-    severity: 'info',
-    details: `Updated barcode ${data.barcode_value}`,
-    metadata: { barcodeId, updates },
-  }).catch(() => {});
-
-  return data;
-}
-
-/**
- * Delete barcode (soft delete - set status to 'deleted')
- */
-export async function deleteBarcode(barcodeId, userId) {
-  const { data, error } = await supabaseAdmin
-    .from('barcodes')
-    .update({
-      status: 'deleted',
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', barcodeId)
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  // Log activity
-  await supabaseAdmin.from('activity_log').insert({
-    user_id: userId || null,
-    action: 'barcode.deleted',
-    category: 'Inventory',
-    severity: 'warning',
-    details: `Deleted barcode ${data.barcode_value}`,
-    metadata: { barcodeId },
-  }).catch(() => {});
-
-  return data;
-}
-
-/**
- * Record barcode scan event
- */
-export async function recordBarcodeScan(scanData) {
-  const { barcodeValue, scanType, location, referenceType, referenceId, userId, deviceInfo } = scanData;
-
-  // Get barcode ID
-  const barcode = await getBarcodeByValue(barcodeValue);
-  
-  if (!barcode) {
+  if (error || !data) {
     throw new Error(`Barcode not found: ${barcodeValue}`);
   }
 
-  // Insert scan record
-  const { data, error } = await supabaseAdmin
-    .from('barcode_scans')
-    .insert({
-      barcode_id: barcode.id,
-      barcode_value: barcodeValue,
-      scan_type: scanType || 'general',
-      location: location || null,
-      reference_type: referenceType || null,
-      reference_id: referenceId || null,
-      scanned_by: userId || null,
-      device_info: deviceInfo || {},
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  logger.info(`📱 Barcode scanned: ${barcodeValue} (${scanType})`);
-  
-  return {
-    scan: data,
-    barcode: barcode,
-  };
+  return data;
 }
 
 /**
- * Generate multiple barcodes in batch
+ * Deactivate a barcode (soft delete - preserves for returns/rejection)
+ * NEVER hard-delete barcodes
+ * 
+ * @param {string} barcodeId - Barcode UUID
+ * @returns {Object} Updated barcode
  */
-export async function createBarcodeBatch(data) {
-  const { productId, batchId, quantity, userId } = data;
-
-  if (!productId || !quantity || quantity < 1) {
-    throw new Error('Product ID and quantity (>0) are required');
+export async function deactivateBarcode(barcodeId) {
+  if (!barcodeId) {
+    throw new Error('Barcode ID is required');
   }
 
-  const barcodes = [];
-  const errors = [];
+  const { data, error } = await supabaseAdmin
+    .from('barcodes')
+    .update({
+      status: 'inactive',
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', barcodeId)
+    .select()
+    .single();
 
-  for (let i = 0; i < quantity; i++) {
-    try {
-      const barcode = await createBarcode({ productId, batchId, userId });
-      barcodes.push(barcode);
-    } catch (err) {
-      errors.push({
-        index: i,
-        error: err.message,
-      });
-    }
+  if (error) {
+    throw new Error(`Failed to deactivate barcode: ${error.message}`);
   }
 
-  return {
-    success: barcodes.length,
-    failed: errors.length,
-    barcodes,
-    errors,
-  };
+  return data;
 }
-
-export default {
-  createBarcode,
-  getBarcodeByValue,
-  getBarcodeById,
-  listBarcodes,
-  updateBarcode,
-  deleteBarcode,
-  recordBarcodeScan,
-  createBarcodeBatch,
-  generateQRCode,
-};

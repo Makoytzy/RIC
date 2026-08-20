@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ScanBarcode, Barcode, Package, Printer, Download, QrCode,
@@ -6,6 +6,7 @@ import {
   PackageCheck, Boxes, Copy, Eye, Settings, Edit, Trash2, ExternalLink
 } from 'lucide-react';
 import api from '../../../services/api.js';
+import BarcodeLabel from '../../../components/barcode/BarcodeLabel';
 
 export default function BarcodeGeneration() {
   const [config, setConfig] = useState(null);
@@ -475,10 +476,10 @@ export default function BarcodeGeneration() {
             <h1 className="text-xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 bg-clip-text text-transparent tracking-tight">
               Barcode & QR Generation
             </h1>
-            <p className="text-slate-600 text-xs flex items-center gap-1.5">
+            <div className="text-slate-600 text-xs flex items-center gap-1.5">
               <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></div>
               Generate unique barcodes with QR codes for full traceability
-            </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -744,33 +745,13 @@ export default function BarcodeGeneration() {
 
                       {/* Compact Barcode + QR Display */}
                       <div className="p-2 rounded-lg bg-white border border-slate-200 mb-2">
-                        <div className="flex gap-2 items-center">
-                          <div className="flex-1 min-w-0">
-                            <div className="h-8 flex items-center justify-center gap-0.5 mb-1.5">
-                              {Array.from({ length: 24 }, (_, i) => (
-                                <div
-                                  key={i}
-                                  className="bg-slate-950 h-full rounded-sm"
-                                  style={{ width: `${[2, 3, 1, 4, 2][i % 5]}px` }}
-                                />
-                              ))}
-                            </div>
-                            <p className="font-mono text-[10px] font-bold text-center text-slate-900 bg-slate-100 py-1 rounded">
-                              {barcode.barcode_value}
-                            </p>
-                          </div>
-
-                          {barcode.qr_code_data && (
-                            <div className="flex-shrink-0 text-center">
-                              <img 
-                                src={barcode.qr_code_data} 
-                                alt="QR" 
-                                className="w-12 h-12 rounded border border-slate-200"
-                              />
-                              <p className="text-[8px] text-slate-500 mt-0.5">Scan</p>
-                            </div>
-                          )}
-                        </div>
+                        <BarcodeLabel
+                          barcode={barcode}
+                          product={barcode.products}
+                          batch={barcode.batches}
+                          inventoryUnit={barcode.inventory_units}
+                          shipment={barcode.batches?.shipments}
+                        />
                       </div>
 
                       {/* Compact Actions */}
@@ -896,7 +877,7 @@ export default function BarcodeGeneration() {
       </AnimatePresence>
 
       {/* Custom Scrollbar Styles */}
-      <style jsx>{`
+      <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 8px;
         }

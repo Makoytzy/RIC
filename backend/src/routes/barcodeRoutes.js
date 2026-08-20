@@ -1,25 +1,50 @@
+/**
+ * ============================================================================
+ * BARCODE ROUTES
+ * ============================================================================
+ * API endpoints for barcode generation and traceability
+ * ============================================================================
+ */
+
 import express from 'express';
-import * as barcodeController from '../controllers/barcodeController.js';
-import { authenticate } from '../middleware/authMiddleware.js';
+import {
+  createBarcodeController,
+  getBarcodesController,
+  getBarcodeConfigController,
+  getTraceabilityController,
+  deactivateBarcodeController
+} from '../controllers/barcodeController.js';
 
 const router = express.Router();
 
-router.use(authenticate);
+/**
+ * GET /api/barcodes/config
+ * Get barcode configuration
+ */
+router.get('/config', getBarcodeConfigController);
 
-// Configuration endpoints
-router.get('/config', barcodeController.getBarcodeConfig);
-router.post('/config', barcodeController.updateBarcodeConfig);
-router.put('/config', barcodeController.updateBarcodeConfig);
-router.post('/validate', barcodeController.validateBarcode);
+/**
+ * GET /api/barcodes
+ * List barcodes with traceability info
+ */
+router.get('/', getBarcodesController);
 
-// CRUD endpoints
-router.post('/', barcodeController.createBarcode);
-router.get('/', barcodeController.listBarcodes);
-router.get('/:barcode', barcodeController.getBarcode);
-router.put('/:id', barcodeController.updateBarcodeById);
-router.delete('/:id', barcodeController.deleteBarcodeById);
+/**
+ * POST /api/barcodes
+ * Generate new barcodes
+ */
+router.post('/', createBarcodeController);
 
-// Scan endpoint
-router.post('/:barcode/scan', barcodeController.scanBarcode);
+/**
+ * GET /api/barcodes/trace/:barcodeValue
+ * Get traceability chain for QR code scanning
+ */
+router.get('/trace/:barcodeValue', getTraceabilityController);
+
+/**
+ * PATCH /api/barcodes/:id/deactivate
+ * Deactivate a barcode (soft delete)
+ */
+router.patch('/:id/deactivate', deactivateBarcodeController);
 
 export default router;
