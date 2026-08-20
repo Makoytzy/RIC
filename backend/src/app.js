@@ -20,6 +20,10 @@ import traceabilityRoutes from './routes/traceabilityRoutes.js';
 import auditLogRoutes from './routes/auditLogRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import employeeRoutes from './routes/employeeRoutes.js';
+import shipmentRoutes from './routes/shipmentRoutes.js';
+import batchRoutes from './routes/batchRoutes.js';
+import warehouseLocationRoutes from './routes/warehouseLocationRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
 
 const app = express();
 
@@ -56,6 +60,14 @@ app.use('/api/returns', orderRoutes);
 
 // Suppliers
 app.use('/api/suppliers', supplierRoutes);
+
+// Shipments & Batches
+app.use('/api/shipments', shipmentRoutes);
+app.use('/api/batches', batchRoutes);
+
+// Warehouse Locations & Notifications
+app.use('/api/warehouse-locations', warehouseLocationRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // System Settings & Audit Logs
 app.use('/api/settings', settingsRoutes);

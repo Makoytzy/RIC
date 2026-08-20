@@ -372,8 +372,8 @@ export default function OperationalDashboardView({ name = 'Operator' }) {
               <div className="flex-1">
                 <h3 className="text-sm font-semibold text-slate-800">Create Batches &amp; Coordinate Storage</h3>
                 <p className="text-xs text-slate-600 mt-1">Organize products into batches, assign warehouse locations, notify floor staff</p>
-                <Link to="/batches/create" className="text-xs font-semibold text-purple-600 hover:text-purple-700 inline-flex items-center gap-1 mt-2">
-                  Create Batch <ArrowRight className="w-3 h-3" />
+                <Link to="/batches" className="text-xs font-semibold text-purple-600 hover:text-purple-700 inline-flex items-center gap-1 mt-2">
+                  Manage Batches <ArrowRight className="w-3 h-3" />
                 </Link>
               </div>
             </div>
@@ -386,7 +386,7 @@ export default function OperationalDashboardView({ name = 'Operator' }) {
               <div className="flex-1">
                 <h3 className="text-sm font-semibold text-slate-800">Generate Waybills &amp; Documentation</h3>
                 <p className="text-xs text-slate-600 mt-1">Print shipping manifests, internal transfer documents, and QC certificates</p>
-                <Link to="/waybills/generate" className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 inline-flex items-center gap-1 mt-2">
+                <Link to="/waybill" className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 inline-flex items-center gap-1 mt-2">
                   Generate Waybill <ArrowRight className="w-3 h-3" />
                 </Link>
               </div>

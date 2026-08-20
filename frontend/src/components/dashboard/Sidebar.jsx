@@ -25,6 +25,7 @@ import {
   Barcode,
   Ruler,
   ScrollText,
+  Layers,
 } from 'lucide-react';
 import logo from '../../Image/logo.jpg';
 import { useAuth } from '../../hooks/useAuth';
@@ -173,6 +174,13 @@ const NAVIGATION = [
         label: 'Suppliers',
         icon: Truck,
         path: '/suppliers',
+        roles: ['admin', 'manager', 'operational_staff'],
+      },
+      {
+        id: 'batches',
+        label: 'Batch Management',
+        icon: Layers,
+        path: '/batches',
         roles: ['admin', 'manager', 'operational_staff'],
       },
       {

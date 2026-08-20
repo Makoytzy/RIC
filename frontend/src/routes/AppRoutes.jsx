@@ -150,20 +150,25 @@ export default function AppRoutes() {
               OPERATIONAL STAFF
           ═══════════════════════════════════════════════════ */}
           <Route element={<RoleRoute allowed={[OP, A]} />}>
+            <Route path="/shipments"            element={<ShipmentRegistration />} />
             <Route path="/shipments/documents"  element={<ShipmentDocuments />} />
             <Route path="/shipments/schedule"   element={<ShipmentSchedule />} />
             <Route path="/shipments/register"   element={<ShipmentRegistration />} />
+            <Route path="/products"             element={<ProductsList />} />
             <Route path="/products/list"        element={<ProductsList />} />
             <Route path="/products/register"    element={<ProductRegistration />} />
+            <Route path="/products/search"      element={<ProductsList />} />
             <Route path="/expected-inventory"   element={<ExpectedInventory />} />
             <Route path="/barcode/prepare"      element={<BarcodePreparation />} />
             <Route path="/barcode/generate"     element={<BarcodeGeneration />} />
+            <Route path="/barcode/labels"       element={<BarcodeGeneration />} />
             <Route path="/batches"              element={<BatchManagement />} />
             <Route path="/inventory/register"   element={<InventoryRegistration />} />
             <Route path="/inventory/update"     element={<InventoryUpdate />} />
             <Route path="/packing-slip"         element={<PackingSlip />} />
             <Route path="/returns/process"      element={<ReturnProcessing />} />
             <Route path="/waybill"              element={<Waybill />} />
+            <Route path="/waybills"             element={<Waybill />} />
           </Route>
 
           {/* ══════════════════════════════════════════════════
