@@ -1,5 +1,28 @@
 import { useState, useEffect } from 'react';
-import { Plus, Layers, Search, Calendar, Package, Barcode } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Plus, 
+  Layers, 
+  Search, 
+  Calendar, 
+  Package, 
+  Barcode, 
+  Edit2, 
+  Trash2, 
+  X, 
+  Check, 
+  AlertTriangle,
+  ChevronDown,
+  Filter,
+  Download,
+  RefreshCw,
+  Eye,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Ship,
+  Box
+} from 'lucide-react';
 import { 
   fetchBatches, 
   createBatch, 
@@ -15,10 +38,12 @@ export default function BatchManagement() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingBatch, setEditingBatch] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ACTIVE');
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -36,12 +61,15 @@ export default function BatchManagement() {
     loadData();
   }, [statusFilter]);
 
+  // Calculate total barcodes generated
+  const totalBarcodesGenerated = batches.reduce((sum, batch) => sum + (batch.barcode_count || 0), 0);
+
   const loadData = async () => {
     try {
       setLoading(true);
       const [batchesData, shipmentsData, productsData] = await Promise.all([
         fetchBatches({ status: statusFilter }),
-        fetchShipments({ status: 'RECEIVED' }), // Only show received shipments
+        fetchShipments({ status: 'RECEIVED' }),
         fetchProducts({ status: 'In Stock' })
       ]);
       
@@ -77,7 +105,6 @@ export default function BatchManagement() {
     try {
       setLoading(true);
       
-      // Auto-generate batch number if not provided
       const batchData = {
         ...formData,
         batch_number: formData.batch_number || generateBatchNumber()
@@ -85,15 +112,19 @@ export default function BatchManagement() {
 
       if (editingBatch) {
         await updateBatch(editingBatch.id, batchData);
+        setSuccess('Batch updated successfully');
       } else {
         await createBatch(batchData);
+        setSuccess('Batch created successfully');
       }
 
+      setTimeout(() => setSuccess(''), 3000);
       resetForm();
       await loadData();
     } catch (err) {
       console.error('Error saving batch:', err);
       setError(err.response?.data?.error || 'Failed to save batch');
+      setTimeout(() => setError(null), 5000);
     } finally {
       setLoading(false);
     }
@@ -115,14 +146,19 @@ export default function BatchManagement() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to deactivate this batch?')) return;
-    
     try {
+      setLoading(true);
       await deleteBatch(id);
+      setSuccess('Batch deleted successfully');
+      setTimeout(() => setSuccess(''), 3000);
+      setDeleteConfirm(null);
       await loadData();
     } catch (err) {
       console.error('Error deleting batch:', err);
       setError(err.response?.data?.error || 'Failed to delete batch');
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -143,11 +179,11 @@ export default function BatchManagement() {
 
   const getStatusBadge = (status) => {
     const styles = {
-      ACTIVE: 'bg-green-100 text-green-800',
-      INACTIVE: 'bg-gray-100 text-gray-800',
-      COMPLETED: 'bg-blue-100 text-blue-800'
+      ACTIVE: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', icon: CheckCircle2 },
+      INACTIVE: { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', icon: XCircle },
+      COMPLETED: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', icon: Check }
     };
-    return styles[status] || 'bg-gray-100 text-gray-800';
+    return styles[status] || styles.INACTIVE;
   };
 
   const filteredBatches = batches.filter(batch => {
@@ -162,349 +198,552 @@ export default function BatchManagement() {
 
   if (loading && batches.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading batches...</div>
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <RefreshCw className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <p className="text-slate-600">Loading batches...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 -m-6 p-6 min-h-screen">
       {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Batch Management</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Create and manage tire batches from received shipments
-          </p>
+      <div className="mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30 mb-2">
+              <Layers className="w-3.5 h-3.5" />
+              BATCH MANAGEMENT
+            </div>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 bg-clip-text text-transparent tracking-tight">
+              Batch Management
+            </h1>
+            <div className="text-slate-600 text-sm flex items-center gap-2 mt-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+              Create and manage tire batches from received shipments
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => loadData()}
+              className="p-2.5 rounded-xl bg-white border-2 border-slate-200 text-slate-700 hover:border-blue-400 transition-all duration-300 shadow-sm hover:shadow-md"
+              title="Refresh"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/40 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/50"
+            >
+              <Plus className="w-4 h-4" />
+              New Batch
+            </button>
+          </div>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          New Batch
-        </button>
       </div>
 
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          {error}
-        </div>
-      )}
-
-      {/* Form */}
-      {showForm && (
-        <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">
-            {editingBatch ? 'Edit Batch' : 'New Batch'}
-          </h2>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Shipment */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Shipment *
-                </label>
-                <select
-                  value={formData.shipment_id}
-                  onChange={(e) => setFormData({ ...formData, shipment_id: e.target.value })}
-                  required
-                  disabled={editingBatch}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                >
-                  <option value="">Select Shipment</option>
-                  {shipments.map(shipment => (
-                    <option key={shipment.id} value={shipment.id}>
-                      {shipment.shipment_number} - {shipment.container_number}
-                    </option>
-                  ))}
-                </select>
-                {shipments.length === 0 && (
-                  <p className="mt-1 text-xs text-amber-600">
-                    No received shipments available. Please receive a shipment first.
-                  </p>
-                )}
-              </div>
-
-              {/* Product */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Product *
-                </label>
-                <select
-                  value={formData.product_id}
-                  onChange={(e) => setFormData({ ...formData, product_id: e.target.value })}
-                  required
-                  disabled={editingBatch}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                >
-                  <option value="">Select Product</option>
-                  {products.map(product => (
-                    <option key={product.id} value={product.id}>
-                      {product.sku} - {product.brand} {product.model} ({product.dimensions})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Batch Number */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Batch Number
-                </label>
-                <input
-                  type="text"
-                  value={formData.batch_number}
-                  onChange={(e) => setFormData({ ...formData, batch_number: e.target.value })}
-                  placeholder="Leave blank to auto-generate"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Format: BATCH-YYMM-XXX (auto-generated if empty)
-                </p>
-              </div>
-
-              {/* Batch Month */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Batch Month *
-                </label>
-                <select
-                  value={formData.batch_month}
-                  onChange={(e) => setFormData({ ...formData, batch_month: parseInt(e.target.value) })}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
-                    <option key={month} value={month}>
-                      {new Date(2000, month - 1).toLocaleString('default', { month: 'long' })} ({month})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Batch Year */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Batch Year *
-                </label>
-                <input
-                  type="number"
-                  value={formData.batch_year}
-                  onChange={(e) => setFormData({ ...formData, batch_year: parseInt(e.target.value) })}
-                  required
-                  min="2000"
-                  max="2100"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              {/* Manufactured Date */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Manufactured Date
-                </label>
-                <input
-                  type="date"
-                  value={formData.manufactured_date}
-                  onChange={(e) => setFormData({ ...formData, manufactured_date: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              {/* Expiry Date */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Expiry Date
-                </label>
-                <input
-                  type="date"
-                  value={formData.expiry_date}
-                  onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            {/* Notes */}
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white rounded-2xl shadow-lg border border-slate-200 p-5 hover:shadow-xl transition-all"
+        >
+          <div className="flex items-center justify-between">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Notes
-              </label>
-              <textarea
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                rows="3"
-                placeholder="Additional notes about this batch..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Batches</p>
+              <p className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                {batches.length}
+              </p>
             </div>
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
+              <Layers className="w-6 h-6 text-white" />
+            </div>
+          </div>
+        </motion.div>
 
-            {/* Form Actions */}
-            <div className="flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={resetForm}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-              >
-                {loading ? 'Saving...' : editingBatch ? 'Update Batch' : 'Create Batch'}
-              </button>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white rounded-2xl shadow-lg border border-emerald-200 p-5 hover:shadow-xl transition-all"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Barcodes Generated</p>
+              <p className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                {totalBarcodesGenerated}
+              </p>
             </div>
-          </form>
-        </div>
-      )}
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg">
+              <Barcode className="w-6 h-6 text-white" />
+            </div>
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white rounded-2xl shadow-lg border border-slate-200 p-5 hover:shadow-xl transition-all"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Active Batches</p>
+              <p className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                {batches.filter(b => b.status === 'ACTIVE').length}
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg">
+              <CheckCircle2 className="w-6 h-6 text-white" />
+            </div>
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="bg-white rounded-2xl shadow-lg border border-slate-200 p-5 hover:shadow-xl transition-all"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Avg Per Batch</p>
+              <p className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                {batches.length > 0 ? Math.round(totalBarcodesGenerated / batches.length) : 0}
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg">
+              <Package className="w-6 h-6 text-white" />
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Alerts */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mb-4 p-4 rounded-xl bg-gradient-to-r from-rose-50 to-red-50 border border-rose-200 text-rose-900 text-sm flex items-center gap-3 shadow-md"
+          >
+            <AlertTriangle className="w-5 h-5 text-rose-600 flex-shrink-0" />
+            <span className="font-medium">{error}</span>
+            <button onClick={() => setError(null)} className="ml-auto p-1 hover:bg-rose-100 rounded-lg transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+
+        {success && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mb-4 p-4 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 text-emerald-900 text-sm flex items-center gap-3 shadow-md"
+          >
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+            <span className="font-medium">{success}</span>
+            <button onClick={() => setSuccess('')} className="ml-auto p-1 hover:bg-emerald-100 rounded-lg transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Form Modal */}
+      <AnimatePresence>
+        {showForm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => resetForm()}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-t-2xl flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold">{editingBatch ? 'Edit Batch' : 'Create New Batch'}</h2>
+                  <p className="text-blue-100 text-sm mt-1">Fill in the batch details below</p>
+                </div>
+                <button
+                  onClick={() => resetForm()}
+                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Shipment */}
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">
+                      <Ship className="w-4 h-4 inline mr-1" />
+                      Shipment *
+                    </label>
+                    <select
+                      value={formData.shipment_id}
+                      onChange={(e) => setFormData({ ...formData, shipment_id: e.target.value })}
+                      required
+                      disabled={editingBatch}
+                      className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 transition-all"
+                    >
+                      <option value="">Select Shipment</option>
+                      {shipments.map(shipment => (
+                        <option key={shipment.id} value={shipment.id}>
+                          {shipment.shipment_number} - {shipment.container_number}
+                        </option>
+                      ))}
+                    </select>
+                    {shipments.length === 0 && (
+                      <p className="mt-2 text-xs text-amber-600 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        No received shipments available
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Product */}
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">
+                      <Box className="w-4 h-4 inline mr-1" />
+                      Product *
+                    </label>
+                    <select
+                      value={formData.product_id}
+                      onChange={(e) => setFormData({ ...formData, product_id: e.target.value })}
+                      required
+                      disabled={editingBatch}
+                      className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 transition-all"
+                    >
+                      <option value="">Select Product</option>
+                      {products.map(product => (
+                        <option key={product.id} value={product.id}>
+                          {product.sku} - {product.brand} {product.model}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Batch Number */}
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">
+                      Batch Number
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.batch_number}
+                      onChange={(e) => setFormData({ ...formData, batch_number: e.target.value })}
+                      placeholder="Leave blank to auto-generate"
+                      className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    />
+                    <p className="mt-1 text-xs text-slate-500">Format: BATCH-YYMM-XXX</p>
+                  </div>
+
+                  {/* Batch Month */}
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">
+                      <Calendar className="w-4 h-4 inline mr-1" />
+                      Batch Month *
+                    </label>
+                    <select
+                      value={formData.batch_month}
+                      onChange={(e) => setFormData({ ...formData, batch_month: parseInt(e.target.value) })}
+                      required
+                      className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    >
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                        <option key={month} value={month}>
+                          {new Date(2000, month - 1).toLocaleString('default', { month: 'long' })} ({month})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Batch Year */}
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">
+                      Batch Year *
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.batch_year}
+                      onChange={(e) => setFormData({ ...formData, batch_year: parseInt(e.target.value) })}
+                      required
+                      min="2000"
+                      max="2100"
+                      className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+
+                  {/* Manufactured Date */}
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">
+                      <Clock className="w-4 h-4 inline mr-1" />
+                      Manufactured Date
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.manufactured_date}
+                      onChange={(e) => setFormData({ ...formData, manufactured_date: e.target.value })}
+                      className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+
+                  {/* Expiry Date */}
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">
+                      Expiry Date
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.expiry_date}
+                      onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
+                      className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">
+                    Notes
+                  </label>
+                  <textarea
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    rows="4"
+                    placeholder="Additional notes about this batch..."
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
+                  />
+                </div>
+
+                {/* Form Actions */}
+                <div className="flex justify-end gap-3 pt-4 border-t">
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="px-6 py-3 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="px-6 py-3 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    {loading ? 'Saving...' : editingBatch ? 'Update Batch' : 'Create Batch'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Filters */}
-      <div className="bg-white shadow rounded-lg p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-5 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <div className="md:col-span-2 relative">
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
               type="text"
-              placeholder="Search batches..."
+              placeholder="Search batches, products, SKU..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-slate-50/50"
             />
           </div>
 
           {/* Status Filter */}
-          <div>
+          <div className="relative">
+            <Filter className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none cursor-pointer bg-slate-50/50"
             >
               <option value="">All Statuses</option>
               <option value="ACTIVE">Active</option>
               <option value="INACTIVE">Inactive</option>
               <option value="COMPLETED">Completed</option>
             </select>
+            <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
           </div>
         </div>
       </div>
 
-      {/* Batches List */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Batch
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Product
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Shipment
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Month/Year
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Barcodes
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredBatches.length === 0 ? (
-              <tr>
-                <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
-                  <Layers className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                  <p className="text-lg font-medium">No batches found</p>
-                  <p className="mt-1">Create your first batch to get started</p>
-                </td>
-              </tr>
-            ) : (
-              filteredBatches.map((batch) => (
-                <tr key={batch.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <Package className="h-5 w-5 text-gray-400 mr-2" />
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {batch.batch_number}
+      {/* Batches Grid */}
+      <div className="grid grid-cols-1 gap-4">
+        {filteredBatches.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-2xl shadow-lg border border-slate-200 p-12 text-center"
+          >
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center mx-auto mb-4">
+              <Layers className="w-10 h-10 text-blue-600" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 mb-2">No batches found</h3>
+            <p className="text-slate-600 mb-6">Create your first batch to get started</p>
+            <button
+              onClick={() => setShowForm(true)}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/40 transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              Create First Batch
+            </button>
+          </motion.div>
+        ) : (
+          filteredBatches.map((batch, index) => {
+            const statusStyle = getStatusBadge(batch.status);
+            const StatusIcon = statusStyle.icon;
+
+            return (
+              <motion.div
+                key={batch.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="bg-white rounded-2xl shadow-lg border border-slate-200 hover:shadow-xl transition-all duration-300 overflow-hidden group"
+              >
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-start gap-4 flex-1">
+                      <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg">
+                        <Package className="w-7 h-7 text-white" />
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-lg font-bold text-slate-900 truncate">{batch.batch_number}</h3>
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`}>
+                            <StatusIcon className="w-3.5 h-3.5" />
+                            {batch.status}
+                          </span>
                         </div>
-                        <div className="text-xs text-gray-500">
-                          {new Date(batch.created_at).toLocaleDateString()}
+                        
+                        <div className="flex items-center gap-4 text-sm text-slate-600">
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="w-4 h-4 text-slate-400" />
+                            <span>{batch.batch_month}/{batch.batch_year}</span>
+                          </div>
+                        </div>
+                        
+                        {/* Barcode Count Badge */}
+                        <div className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200">
+                          <Barcode className="w-4 h-4 text-emerald-600" />
+                          <span className="text-sm font-bold text-emerald-900">
+                            {batch.barcode_count || 0} Barcodes Generated
+                          </span>
                         </div>
                       </div>
                     </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900">
-                      {batch.products?.sku || 'N/A'}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {batch.products?.brand} {batch.products?.model}
-                    </div>
-                    <div className="text-xs text-gray-400">
-                      {batch.products?.dimensions}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {batch.shipments?.shipment_number || 'N/A'}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {batch.shipments?.container_number}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center text-sm text-gray-900">
-                      <Calendar className="h-4 w-4 mr-1 text-gray-400" />
-                      {batch.batch_month}/{batch.batch_year}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center text-sm text-gray-900">
-                      <Barcode className="h-4 w-4 mr-1 text-gray-400" />
-                      {batch.barcode_count || 0}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(batch.status)}`}>
-                      {batch.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                    <button
-                      onClick={() => handleEdit(batch)}
-                      className="text-blue-600 hover:text-blue-900"
-                    >
-                      Edit
-                    </button>
-                    {batch.status === 'ACTIVE' && (
+
+                    <div className="flex items-center gap-2 ml-4">
                       <button
-                        onClick={() => handleDelete(batch.id)}
-                        className="text-red-600 hover:text-red-900"
+                        onClick={() => handleEdit(batch)}
+                        className="p-2.5 rounded-xl bg-blue-50 border-2 border-blue-200 text-blue-700 hover:bg-blue-100 transition-all"
+                        title="Edit"
                       >
-                        Deactivate
+                        <Edit2 className="w-4 h-4" />
                       </button>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                      <button
+                        onClick={() => setDeleteConfirm(batch.id)}
+                        className="p-2.5 rounded-xl bg-red-50 border-2 border-red-200 text-red-700 hover:bg-red-100 transition-all"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-slate-100">
+                    {/* Product Info */}
+                    <div className="space-y-1">
+                      <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Product</div>
+                      <div className="text-sm font-semibold text-slate-900">{batch.products?.sku || 'N/A'}</div>
+                      <div className="text-xs text-slate-600">{batch.products?.brand} {batch.products?.model}</div>
+                      <div className="text-xs text-slate-500">{batch.products?.dimensions}</div>
+                    </div>
+
+                    {/* Shipment Info */}
+                    <div className="space-y-1">
+                      <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Shipment</div>
+                      <div className="text-sm font-semibold text-slate-900">{batch.shipments?.shipment_number || 'N/A'}</div>
+                      <div className="text-xs text-slate-600">{batch.shipments?.container_number}</div>
+                    </div>
+
+                    {/* Dates */}
+                    <div className="space-y-1">
+                      <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Created</div>
+                      <div className="text-sm font-semibold text-slate-900">
+                        {new Date(batch.created_at).toLocaleDateString()}
+                      </div>
+                      <div className="text-xs text-slate-600">
+                        {new Date(batch.created_at).toLocaleTimeString()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Delete Confirmation */}
+                <AnimatePresence>
+                  {deleteConfirm === batch.id && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="bg-gradient-to-r from-red-50 to-rose-50 border-t-2 border-red-200 px-6 py-4 overflow-hidden"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                            <AlertTriangle className="w-5 h-5 text-red-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-red-900">Delete this batch?</p>
+                            <p className="text-xs text-red-700">This action cannot be undone</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setDeleteConfirm(null)}
+                            className="px-4 py-2 rounded-lg border-2 border-red-200 text-sm font-bold text-red-700 hover:bg-red-50 transition-all"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => handleDelete(batch.id)}
+                            disabled={loading}
+                            className="px-4 py-2 rounded-lg text-sm font-bold text-white bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/40 disabled:opacity-50 transition-all"
+                          >
+                            {loading ? 'Deleting...' : 'Delete'}
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            );
+          })
+        )}
       </div>
     </div>
   );

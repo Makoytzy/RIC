@@ -111,19 +111,43 @@ export const NAV_SECTIONS = [
   // OPERATIONAL STAFF SIDEBAR
   // ══════════════════════════════════════════════════════════
   {
-    section: 'Shipments',
+    section: 'Shipment & Cargo',
     items: [
       { label: 'Incoming Shipments',     path: '/shipments/incoming',  roles: [ROLES.OPERATIONAL_STAFF] },
-      { label: 'Shipment Documents',     path: '/shipments/documents', roles: [ROLES.OPERATIONAL_STAFF] },
-      { label: 'Shipment Schedule',      path: '/shipments/schedule',  roles: [ROLES.OPERATIONAL_STAFF] },
+      { label: 'All Shipments',          path: '/shipments',           roles: [ROLES.OPERATIONAL_STAFF] },
+      { label: 'Process Returns',        path: '/returns',             roles: [ROLES.OPERATIONAL_STAFF] },
     ],
   },
   {
-    section: 'Products & Inventory',
+    section: 'Product Catalog',
     items: [
-      { label: 'Products',               path: '/products/list',       roles: [ROLES.OPERATIONAL_STAFF] },
+      { label: 'Register Products',      path: '/products/register',   roles: [ROLES.OPERATIONAL_STAFF] },
+      { label: 'Master Catalog',         path: '/products/list',       roles: [ROLES.OPERATIONAL_STAFF] },
+      { label: 'Product Lookup',         path: '/products/search',     roles: [ROLES.OPERATIONAL_STAFF] },
+    ],
+  },
+  {
+    section: 'Barcode & Labels',
+    items: [
+      { label: 'Generate Barcodes',      path: '/barcode/generate',    roles: [ROLES.OPERATIONAL_STAFF] },
+      { label: 'Scan Products',          path: '/barcode/scan',        roles: [ROLES.OPERATIONAL_STAFF] },
+      { label: 'Print Labels',           path: '/barcode/labels',      roles: [ROLES.OPERATIONAL_STAFF] },
+    ],
+  },
+  {
+    section: 'Batch & Orders',
+    items: [
+      { label: 'Manage Batches',         path: '/batches',             roles: [ROLES.OPERATIONAL_STAFF] },
+      { label: 'Waybills & Docs',        path: '/waybill',             roles: [ROLES.OPERATIONAL_STAFF] },
+      { label: 'Order Processing',       path: '/orders',              roles: [ROLES.OPERATIONAL_STAFF] },
+    ],
+  },
+  {
+    section: 'Inventory',
+    items: [
+      { label: 'Warehouse Locations',    path: '/warehouse',           roles: [ROLES.OPERATIONAL_STAFF] },
       { label: 'Expected Inventory',     path: '/expected-inventory',  roles: [ROLES.OPERATIONAL_STAFF] },
-      { label: 'Barcode Preparation',    path: '/barcode/prepare',     roles: [ROLES.OPERATIONAL_STAFF] },
+      { label: 'Inventory Update',       path: '/inventory/update',    roles: [ROLES.OPERATIONAL_STAFF] },
     ],
   },
 

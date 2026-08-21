@@ -197,8 +197,10 @@ export async function createBarcodes({
  * @param {number} params.limit - Max number of barcodes to return
  * @returns {Array} Barcodes with nested product, batch, shipment info
  */
-export async function getBarcodes({ limit = 50 }) {
-  const safeLimit = Math.min(Number(limit) || 50, 500);
+export async function getBarcodes({ limit }) {
+  // If limit is provided, use it; otherwise fetch all barcodes
+  const useLimit = limit !== undefined;
+  const safeLimit = useLimit ? Number(limit) : 10000; // High default for "all"
 
   try {
     // Try using RPC function first
@@ -245,7 +247,7 @@ export async function getBarcodes({ limit = 50 }) {
     console.warn('⚠️ RPC not available, using direct table query');
     console.log('Attempting to query barcodes table...');
     
-    const { data: tableData, error: tableError } = await supabaseAdmin
+    const query = supabaseAdmin
       .from('barcodes')
       .select(`
         id,
@@ -259,8 +261,14 @@ export async function getBarcodes({ limit = 50 }) {
         batch_id,
         inventory_unit_id
       `)
-      .order('created_at', { ascending: false })
-      .limit(safeLimit);
+      .order('created_at', { ascending: false });
+    
+    // Only apply limit if explicitly provided
+    if (useLimit) {
+      query.limit(safeLimit);
+    }
+    
+    const { data: tableData, error: tableError } = await query;
 
     console.log('Query result:', { 
       hasData: !!tableData, 

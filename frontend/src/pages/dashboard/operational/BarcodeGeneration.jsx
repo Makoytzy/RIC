@@ -7,6 +7,7 @@ import {
   ChevronDown, ChevronRight
 } from 'lucide-react';
 import api from '../../../services/api.js';
+import PremiumModal from '../../../components/shared/PremiumModal.jsx';
 
 export default function BarcodeGeneration() {
   const [config, setConfig] = useState(null);
@@ -19,12 +20,23 @@ export default function BarcodeGeneration() {
   const [expandedFolders, setExpandedFolders] = useState([]); // NEW: Track expanded folders
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false); // NEW: Refresh animation state
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [batchMode, setBatchMode] = useState(false);
   const [batchQuantity, setBatchQuantity] = useState(1);
   const [labelFormat, setLabelFormat] = useState('4x2');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+  // Premium Modal States
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showProgressModal, setShowProgressModal] = useState(false); // NEW: Progress modal
+  const [generationProgress, setGenerationProgress] = useState(0); // NEW: Progress percentage
+  const [modalMessage, setModalMessage] = useState('');
+  const [modalTitle, setModalTitle] = useState('');
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
 
   // Form data for barcode generation
   const [formData, setFormData] = useState({
@@ -118,9 +130,11 @@ export default function BarcodeGeneration() {
   };
 
   const loadGeneratedBarcodes = async () => {
+    setRefreshing(true);
     try {
       // Backend already returns nested data from RPC function
-      const { data } = await api.get('/barcodes?limit=50');
+      // NO LIMIT - fetch ALL barcodes
+      const { data } = await api.get('/barcodes');
       console.log('🏷️ Loaded barcodes:', data);
       if (data?.barcodes) {
         setGeneratedBarcodes(data.barcodes);
@@ -140,34 +154,56 @@ export default function BarcodeGeneration() {
       }
     } catch (err) {
       console.error('❌ Failed to load barcodes:', err);
+    } finally {
+      // Keep spinning for at least 600ms for smooth animation
+      setTimeout(() => setRefreshing(false), 600);
     }
   };
 
   const handleGenerateSingle = async (product) => {
-    setError('Please enable Batch Mode and select a batch from the dropdown to generate barcodes');
-    setTimeout(() => setError(''), 5000);
+    setModalTitle('Batch Mode Required');
+    setModalMessage('Please enable Batch Mode and select a batch from the dropdown to generate barcodes.');
+    setShowErrorModal(true);
   };
 
   const handleGenerateBatch = async () => {
     if (!formData.batchId) {
-      setError('Please select a batch first');
-      setTimeout(() => setError(''), 3000);
+      setModalTitle('Missing Batch');
+      setModalMessage('Please select a batch first before generating barcodes.');
+      setShowErrorModal(true);
       return;
     }
 
     if (!formData.productId) {
-      setError('Please select a product first');
-      setTimeout(() => setError(''), 3000);
+      setModalTitle('Missing Product');
+      setModalMessage('Please select a product first before generating barcodes.');
+      setShowErrorModal(true);
       return;
     }
 
     if (!batchQuantity || batchQuantity < 1) {
-      setError('Please enter a valid quantity');
-      setTimeout(() => setError(''), 3000);
+      setModalTitle('Invalid Quantity');
+      setModalMessage('Please enter a valid quantity (minimum 1).');
+      setShowErrorModal(true);
       return;
     }
 
+    // Show progress modal
+    setShowProgressModal(true);
+    setGenerationProgress(0);
     setLoading(true);
+
+    // Simulate progress animation
+    const progressInterval = setInterval(() => {
+      setGenerationProgress(prev => {
+        if (prev >= 90) {
+          clearInterval(progressInterval);
+          return 90; // Stop at 90% until actual completion
+        }
+        return prev + 10;
+      });
+    }, 200);
+
     try {
       const { data } = await api.post('/barcodes', {
         productId: formData.productId,
@@ -176,17 +212,34 @@ export default function BarcodeGeneration() {
         quantity: batchQuantity
       });
 
+      // Complete progress to 100%
+      clearInterval(progressInterval);
+      setGenerationProgress(100);
+
+      // Wait a moment to show 100% before closing
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       if (data?.barcodes) {
+        // Close progress modal
+        setShowProgressModal(false);
+        
+        // Add new barcodes to the beginning of the list (prepend)
         setGeneratedBarcodes(prev => [...data.barcodes, ...prev]);
-        setSuccess(`Generated ${data.barcodes.length} barcodes successfully`);
+        setModalTitle('Success!');
+        setModalMessage(`Successfully generated ${data.barcodes.length} barcode${data.barcodes.length > 1 ? 's' : ''}. They are now ready for printing or export.`);
+        setShowSuccessModal(true);
         setBatchQuantity(1);
-        setTimeout(() => setSuccess(''), 3000);
+        
+        // Reload all barcodes to ensure we have the latest data with proper limit
         await loadGeneratedBarcodes();
       }
     } catch (err) {
+      clearInterval(progressInterval);
+      setShowProgressModal(false);
       console.error('Batch generate error:', err);
-      setError(err.response?.data?.error || 'Failed to generate barcodes');
-      setTimeout(() => setError(''), 5000);
+      setModalTitle('Generation Failed');
+      setModalMessage(err.response?.data?.error || 'Failed to generate barcodes. Please try again or contact support.');
+      setShowErrorModal(true);
     } finally {
       setLoading(false);
     }
@@ -195,44 +248,104 @@ export default function BarcodeGeneration() {
   // NEW: Bulk delete handler
   const handleBulkDelete = async () => {
     if (selectedBarcodes.length === 0) {
-      setError('Please select barcodes to delete');
-      setTimeout(() => setError(''), 3000);
+      setModalTitle('No Selection');
+      setModalMessage('Please select at least one barcode to delete.');
+      setShowErrorModal(true);
       return;
     }
 
-    if (!confirm(`Delete ${selectedBarcodes.length} barcode${selectedBarcodes.length > 1 ? 's' : ''}?`)) {
-      return;
-    }
+    setModalTitle('Delete Multiple Barcodes');
+    setModalMessage(`Are you sure you want to delete ${selectedBarcodes.length} barcode${selectedBarcodes.length > 1 ? 's' : ''}? This action cannot be undone.`);
+    setPendingDeleteId('bulk');
+    setShowDeleteModal(true);
+  };
 
-    setLoading(true);
+  const confirmBulkDelete = async () => {
+    console.log('🔄 Bulk delete for:', selectedBarcodes.length, 'barcodes');
+    
+    // Close delete modal immediately
+    setShowDeleteModal(false);
+
+    // Optimistic update - remove from UI immediately
+    const deletedBarcodes = generatedBarcodes.filter(b => selectedBarcodes.includes(b.id));
+    const deleteCount = selectedBarcodes.length;
+    setGeneratedBarcodes(prev => prev.filter(b => !selectedBarcodes.includes(b.id)));
+    setSelectedBarcodes([]);
+
     try {
-      // Delete all selected barcodes
+      // Delete all selected barcodes in parallel
       await Promise.all(
         selectedBarcodes.map(id => api.delete(`/barcodes/${id}`))
       );
       
-      setGeneratedBarcodes(prev => prev.filter(b => !selectedBarcodes.includes(b.id)));
-      setSelectedBarcodes([]);
-      setSuccess(`Deleted ${selectedBarcodes.length} barcode${selectedBarcodes.length > 1 ? 's' : ''} successfully`);
-      setTimeout(() => setSuccess(''), 3000);
+      console.log('✅ Bulk delete successful');
+      setModalTitle('Deleted Successfully');
+      setModalMessage(`Successfully deleted ${deleteCount} barcode${deleteCount > 1 ? 's' : ''}.`);
+      setShowSuccessModal(true);
+      setPendingDeleteId(null);
     } catch (err) {
-      setError('Failed to delete some barcodes');
-      setTimeout(() => setError(''), 5000);
-    } finally {
-      setLoading(false);
+      console.error('❌ Bulk delete failed:', err);
+      
+      // Rollback - restore deleted barcodes on error
+      setGeneratedBarcodes(prev => [...deletedBarcodes, ...prev]);
+      setSelectedBarcodes(deletedBarcodes.map(b => b.id));
+      
+      setModalTitle('Delete Failed');
+      setModalMessage('Failed to delete some barcodes. Please try again.');
+      setShowErrorModal(true);
+      setPendingDeleteId(null);
     }
   };
 
   const handleDeleteBarcode = async (barcodeId) => {
+    console.log('🗑️ Delete requested for barcode:', barcodeId);
+    setModalTitle('Delete Barcode');
+    setModalMessage('Are you sure you want to delete this barcode? This action cannot be undone.');
+    setPendingDeleteId(barcodeId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteBarcode = async () => {
+    if (!pendingDeleteId) {
+      console.error('❌ No pending delete ID');
+      return;
+    }
+
+    if (pendingDeleteId === 'bulk') {
+      await confirmBulkDelete();
+      return;
+    }
+
+    console.log('🔄 Attempting to delete barcode:', pendingDeleteId);
+
+    // Close delete modal immediately for better UX
+    setShowDeleteModal(false);
+
+    // Optimistic update - remove from UI immediately
+    const deletedBarcode = generatedBarcodes.find(b => b.id === pendingDeleteId);
+    setGeneratedBarcodes(prev => prev.filter(b => b.id !== pendingDeleteId));
+
     try {
-      await api.delete(`/barcodes/${barcodeId}`);
-      setGeneratedBarcodes(prev => prev.filter(b => b.id !== barcodeId));
-      setSuccess('Barcode deleted successfully');
-      setTimeout(() => setSuccess(''), 3000);
-      setDeleteConfirm(null);
+      await api.delete(`/barcodes/${pendingDeleteId}`);
+      console.log('✅ Delete successful');
+      
+      // Show success modal
+      setModalTitle('Deleted Successfully');
+      setModalMessage('Barcode has been permanently deleted.');
+      setShowSuccessModal(true);
+      setPendingDeleteId(null);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to delete barcode');
-      setTimeout(() => setError(''), 5000);
+      console.error('❌ Delete failed:', err);
+      
+      // Rollback - restore the deleted barcode on error
+      if (deletedBarcode) {
+        setGeneratedBarcodes(prev => [deletedBarcode, ...prev]);
+      }
+      
+      setModalTitle('Delete Failed');
+      setModalMessage(err.response?.data?.error || err.response?.data?.message || 'Failed to delete barcode. Please try again.');
+      setShowErrorModal(true);
+      setPendingDeleteId(null);
     }
   };
 
@@ -275,60 +388,250 @@ export default function BarcodeGeneration() {
 
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
+      <!DOCTYPE html>
       <html>
         <head>
           <title>Print Barcode - ${barcode.barcode_value}</title>
+          <meta charset="UTF-8">
+          <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
           <style>
-            @page { margin: 0; }
-            body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
-            .label { border: 2px dashed #ccc; padding: 20px; width: 4in; margin: 0 auto; page-break-after: always; }
-            .header { font-size: 10px; font-weight: bold; margin-bottom: 10px; text-align: center; }
-            .content { display: flex; gap: 15px; align-items: center; }
-            .barcode-section { flex: 1; }
-            .barcode { font-family: 'Courier New', monospace; font-size: 14px; font-weight: bold; letter-spacing: 2px; text-align: center; margin: 10px 0; }
-            .bars { height: 60px; display: flex; align-items: center; justify-content: center; gap: 1px; background: white; padding: 5px; }
-            .bar { background: black; height: 100%; width: 2px; }
-            .bar.wide { width: 4px; }
-            .qr-section { flex: 0 0 80px; text-align: center; }
-            .qr-section img { width: 80px; height: 80px; }
-            .qr-label { font-size: 7px; margin-top: 3px; }
-            .info { font-size: 9px; margin-top: 10px; line-height: 1.4; }
-            @media print { body { margin: 0; padding: 10px; } .label { border: none; } }
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            @page { 
+              margin: 0.2in; 
+              size: 4in 3.5in;
+            }
+            html, body { 
+              width: 100%;
+              height: 100%;
+              margin: 0;
+              padding: 0;
+            }
+            body { 
+              font-family: 'Segoe UI', Arial, sans-serif; 
+              padding: 8px;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              background: #f5f5f5;
+            }
+            .label { 
+              border: 3px solid #000; 
+              padding: 12px; 
+              width: 3.75in;
+              background: white;
+              page-break-after: avoid;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+              display: flex;
+              flex-direction: column;
+            }
+            .header { 
+              font-size: 11px; 
+              font-weight: bold; 
+              margin-bottom: 6px; 
+              text-align: center;
+              border-bottom: 2px solid #000;
+              padding-bottom: 4px;
+              letter-spacing: 0.3px;
+              color: #000;
+              flex-shrink: 0;
+            }
+            .content-wrapper {
+              display: flex;
+              gap: 8px;
+              align-items: flex-start;
+              margin: 6px 0;
+              flex-shrink: 0;
+            }
+            .barcode-section { 
+              flex: 1;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              padding: 5px;
+              background: #ffffff;
+              border: 1px solid #e0e0e0;
+              border-radius: 3px;
+            }
+            .barcode-container {
+              width: 100%;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              height: 50px;
+              margin-bottom: 3px;
+            }
+            svg#barcode {
+              max-width: 100%;
+              height: auto;
+            }
+            .barcode-text { 
+              font-family: 'Courier New', monospace; 
+              font-size: 10px; 
+              font-weight: bold; 
+              letter-spacing: 1px; 
+              text-align: center;
+              color: #000;
+              padding: 2px;
+              background: #f9f9f9;
+              border-radius: 2px;
+            }
+            .qr-section { 
+              flex: 0 0 65px;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              border-left: 2px solid #e0e0e0;
+              padding-left: 8px;
+            }
+            .qr-section img { 
+              width: 65px; 
+              height: 65px;
+              border: 2px solid #000;
+              border-radius: 3px;
+              background: white;
+            }
+            .qr-label { 
+              font-size: 6px; 
+              margin-top: 2px;
+              font-weight: bold;
+              text-align: center;
+              color: #000;
+            }
+            .info { 
+              font-size: 8px; 
+              margin-top: 6px; 
+              line-height: 1.4;
+              border-top: 2px solid #e0e0e0;
+              padding-top: 6px;
+              color: #000;
+              flex-shrink: 0;
+            }
+            .info-row {
+              display: flex;
+              margin-bottom: 1px;
+            }
+            .info-row strong {
+              min-width: 70px;
+              font-weight: bold;
+              color: #000;
+            }
+            .info-row span {
+              flex: 1;
+              color: #333;
+              font-size: 8px;
+            }
+            @media print { 
+              html, body { 
+                width: 100%;
+                height: 100%;
+                margin: 0; 
+                padding: 0;
+                background: white;
+              } 
+              body {
+                padding: 0;
+              }
+              .label { 
+                border: 3px solid #000;
+                page-break-after: avoid;
+                page-break-inside: avoid;
+                box-shadow: none;
+                margin: 0;
+                padding: 12px;
+              }
+            }
           </style>
         </head>
         <body>
           <div class="label">
             <div class="header">RED INDIAN CUSTOMS - TIRE REGISTRY</div>
-            <div class="content">
+            <div class="content-wrapper">
               <div class="barcode-section">
-                <div class="bars">
-                  ${Array.from({ length: 40 }, (_, i) => `<div class="bar ${Math.random() > 0.5 ? 'wide' : ''}"></div>`).join('')}
+                <div class="barcode-container">
+                  <svg id="barcode"></svg>
                 </div>
-                <div class="barcode">${barcode.barcode_value}</div>
+                <div class="barcode-text">${barcode.barcode_value}</div>
               </div>
               ${barcode.qr_code_data ? `
                 <div class="qr-section">
                   <img src="${barcode.qr_code_data}" alt="QR Code" />
-                  <div class="qr-label">Scan to Trace</div>
+                  <div class="qr-label">SCAN TO TRACE</div>
                 </div>
               ` : ''}
             </div>
             <div class="info">
-              <strong>Product:</strong> ${productName}<br>
-              <strong>SKU:</strong> ${sku}<br>
-              <strong>Batch:</strong> ${batch}<br>
-              <strong>Generated:</strong> ${new Date(barcode.created_at).toLocaleString()}
+              <div class="info-row">
+                <strong>Product:</strong>
+                <span>${productName}</span>
+              </div>
+              <div class="info-row">
+                <strong>SKU:</strong>
+                <span>${sku}</span>
+              </div>
+              <div class="info-row">
+                <strong>Batch:</strong>
+                <span>${batch}</span>
+              </div>
+              <div class="info-row">
+                <strong>Generated:</strong>
+                <span>${new Date(barcode.created_at).toLocaleString()}</span>
+              </div>
             </div>
           </div>
           <script>
-            window.onload = () => {
-              window.print();
-              window.onafterprint = () => window.close();
+            // Wait for JsBarcode to load
+            function generateBarcode() {
+              if (typeof JsBarcode === 'undefined') {
+                console.log('Waiting for JsBarcode to load...');
+                setTimeout(generateBarcode, 100);
+                return;
+              }
+              
+              try {
+                console.log('Generating barcode for: ${barcode.barcode_value}');
+                JsBarcode("#barcode", "${barcode.barcode_value}", {
+                  format: "CODE128",
+                  width: 1.8,
+                  height: 45,
+                  displayValue: false,
+                  margin: 3,
+                  background: "#ffffff",
+                  lineColor: "#000000"
+                });
+                console.log('Barcode generated successfully');
+                
+                // Wait a bit more for rendering, then print
+                setTimeout(() => {
+                  console.log('Opening print dialog...');
+                  window.print();
+                }, 800);
+              } catch(e) {
+                console.error('Barcode generation error:', e);
+                alert('Failed to generate barcode. Please check the barcode value.');
+              }
+            }
+            
+            // Start generation when page loads
+            if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', generateBarcode);
+            } else {
+              generateBarcode();
+            }
+            
+            // Close window after printing
+            window.onafterprint = () => {
+              setTimeout(() => window.close(), 500);
             };
           </script>
         </body>
       </html>
     `);
+    printWindow.document.close();
   };
 
   const handlePrintAll = () => {
@@ -342,62 +645,231 @@ export default function BarcodeGeneration() {
       const batch = barcode.batches?.batch_number || 'N/A';
 
       return `
-        <div class="label" key="${index}">
-          <div class="header">RED INDIAN CUSTOMS</div>
-          <div class="content">
+        <div class="label">
+          <div class="header">RED INDIAN CUSTOMS - TIRE REGISTRY</div>
+          <div class="content-wrapper">
             <div class="barcode-section">
-              <div class="bars">
-                ${Array.from({ length: 30 }, () => `<div class="bar ${Math.random() > 0.5 ? 'wide' : ''}"></div>`).join('')}
+              <div class="barcode-container">
+                <svg id="barcode-${index}"></svg>
               </div>
-              <div class="barcode">${barcode.barcode_value}</div>
+              <div class="barcode-text">${barcode.barcode_value}</div>
             </div>
             ${barcode.qr_code_data ? `
               <div class="qr-section">
                 <img src="${barcode.qr_code_data}" alt="QR" />
-                <div class="qr-label">Trace</div>
+                <div class="qr-label">SCAN TO TRACE</div>
               </div>
             ` : ''}
           </div>
           <div class="info">
-            <strong>${productName}</strong> | SKU: ${sku} | Batch: ${batch}
+            <div class="info-row">
+              <strong>Product:</strong> <span>${productName}</span>
+            </div>
+            <div class="info-row">
+              <strong>SKU:</strong> <span>${sku}</span>
+            </div>
+            <div class="info-row">
+              <strong>Batch:</strong> <span>${batch}</span>
+            </div>
           </div>
         </div>
       `;
     }).join('');
 
     printWindow.document.write(`
+      <!DOCTYPE html>
       <html>
         <head>
           <title>Print All Barcodes (${generatedBarcodes.length})</title>
+          <meta charset="UTF-8">
+          <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
           <style>
-            @page { margin: 0; }
-            body { font-family: Arial, sans-serif; margin: 10px; }
-            .label { border: 1px dashed #ccc; padding: 15px; width: 3.5in; margin-bottom: 10px; page-break-inside: avoid; }
-            .header { font-size: 9px; font-weight: bold; margin-bottom: 8px; text-align: center; }
-            .content { display: flex; gap: 10px; align-items: center; }
-            .barcode-section { flex: 1; }
-            .barcode { font-family: 'Courier New', monospace; font-size: 12px; font-weight: bold; letter-spacing: 1.5px; text-align: center; margin: 8px 0; }
-            .bars { height: 50px; display: flex; align-items: center; justify-content: center; gap: 1px; }
-            .bar { background: black; height: 100%; width: 2px; }
-            .bar.wide { width: 3px; }
-            .qr-section { flex: 0 0 60px; text-align: center; }
-            .qr-section img { width: 60px; height: 60px; }
-            .qr-label { font-size: 6px; margin-top: 2px; }
-            .info { font-size: 8px; margin-top: 8px; }
-            @media print { body { margin: 0; } }
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            @page { 
+              margin: 0.25in; 
+              size: letter;
+            }
+            body { 
+              font-family: 'Segoe UI', Arial, sans-serif; 
+              padding: 15px;
+              background: #f5f5f5;
+            }
+            .label { 
+              border: 3px solid #000; 
+              padding: 14px; 
+              width: 3.75in; 
+              min-height: 2.25in;
+              margin-bottom: 20px; 
+              page-break-inside: avoid;
+              background: white;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            }
+            .header { 
+              font-size: 12px; 
+              font-weight: bold; 
+              margin-bottom: 10px; 
+              text-align: center;
+              border-bottom: 2px solid #000;
+              padding-bottom: 5px;
+              letter-spacing: 0.5px;
+              color: #000;
+            }
+            .content-wrapper {
+              display: flex;
+              gap: 10px;
+              align-items: flex-start;
+              margin: 10px 0;
+              min-height: 80px;
+            }
+            .barcode-section { 
+              flex: 1;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              padding: 6px;
+              background: #ffffff;
+              border: 1px solid #e0e0e0;
+              border-radius: 4px;
+            }
+            .barcode-container {
+              width: 100%;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              min-height: 55px;
+              margin-bottom: 5px;
+            }
+            svg {
+              max-width: 100%;
+              height: auto;
+            }
+            .barcode-text { 
+              font-family: 'Courier New', monospace; 
+              font-size: 11px; 
+              font-weight: bold; 
+              letter-spacing: 1.5px; 
+              text-align: center; 
+              color: #000;
+              padding: 3px;
+              background: #f9f9f9;
+              border-radius: 3px;
+            }
+            .qr-section { 
+              flex: 0 0 75px; 
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              border-left: 2px solid #e0e0e0;
+              padding-left: 10px;
+            }
+            .qr-section img { 
+              width: 70px; 
+              height: 70px;
+              border: 2px solid #000;
+              border-radius: 4px;
+              background: white;
+            }
+            .qr-label { 
+              font-size: 7px; 
+              margin-top: 3px;
+              font-weight: bold;
+              text-align: center;
+              color: #000;
+            }
+            .info { 
+              font-size: 9px; 
+              margin-top: 10px;
+              border-top: 2px solid #e0e0e0;
+              padding-top: 8px;
+              line-height: 1.6;
+            }
+            .info-row {
+              display: flex;
+              margin-bottom: 2px;
+            }
+            .info-row strong {
+              min-width: 65px;
+              font-weight: bold;
+              color: #000;
+            }
+            .info-row span {
+              flex: 1;
+              color: #333;
+            }
+            @media print { 
+              body { 
+                margin: 0; 
+                padding: 15px;
+                background: white;
+              }
+              .label {
+                page-break-inside: avoid;
+                box-shadow: none;
+              }
+            }
           </style>
         </head>
         <body>
           ${labels}
           <script>
-            window.onload = () => {
-              window.print();
-              window.onafterprint = () => window.close();
+            // Wait for JsBarcode to load
+            function generateAllBarcodes() {
+              if (typeof JsBarcode === 'undefined') {
+                console.log('Waiting for JsBarcode to load...');
+                setTimeout(generateAllBarcodes, 100);
+                return;
+              }
+              
+              console.log('Generating ${generatedBarcodes.length} barcodes...');
+              let successCount = 0;
+              
+              ${generatedBarcodes.map((barcode, index) => `
+                try {
+                  JsBarcode("#barcode-${index}", "${barcode.barcode_value}", {
+                    format: "CODE128",
+                    width: 2.5,
+                    height: 50,
+                    displayValue: false,
+                    margin: 5,
+                    background: "#ffffff",
+                    lineColor: "#000000"
+                  });
+                  successCount++;
+                } catch(e) {
+                  console.error('Barcode ${index} generation error:', e);
+                }
+              `).join('\n')}
+              
+              console.log('Successfully generated ' + successCount + ' barcodes');
+              
+              // Wait for all barcodes to render, then print
+              setTimeout(() => {
+                console.log('Opening print dialog...');
+                window.print();
+              }, 1200);
+            }
+            
+            // Start generation when page loads
+            if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', generateAllBarcodes);
+            } else {
+              generateAllBarcodes();
+            }
+            
+            // Close window after printing
+            window.onafterprint = () => {
+              setTimeout(() => window.close(), 500);
             };
           </script>
         </body>
       </html>
     `);
+    printWindow.document.close();
   };
 
   const handleExport = () => {
@@ -538,38 +1010,158 @@ export default function BarcodeGeneration() {
             </button>
             <button
               onClick={loadGeneratedBarcodes}
-              className="p-1.5 rounded-lg bg-white border-2 border-slate-200 text-slate-700 hover:border-blue-400 transition-all duration-300"
-              title="Refresh"
+              disabled={refreshing}
+              className={`p-1.5 rounded-lg bg-white border-2 border-slate-200 transition-all duration-300 ${
+                refreshing 
+                  ? 'text-blue-600 border-blue-400 cursor-wait' 
+                  : 'text-slate-700 hover:border-blue-400 hover:text-blue-600 active:scale-95'
+              }`}
+              title="Refresh barcodes"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
+              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Alerts */}
-      <AnimatePresence>
-        {success && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="mb-3 p-2.5 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 text-emerald-900 text-xs flex items-center gap-2 shadow-md"
-          >
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            <span className="font-medium">{success}</span>
-          </motion.div>
-        )}
+      {/* Premium Modals */}
+      <PremiumModal
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        type="success"
+        title={modalTitle}
+        message={modalMessage}
+      />
 
-        {error && (
+      <PremiumModal
+        isOpen={showErrorModal}
+        onClose={() => setShowErrorModal(false)}
+        type="error"
+        title={modalTitle}
+        message={modalMessage}
+      />
+
+      <PremiumModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setPendingDeleteId(null);
+        }}
+        type="delete"
+        title={modalTitle}
+        message={modalMessage}
+        onConfirm={confirmDeleteBarcode}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
+
+      {/* Progress Modal */}
+      <AnimatePresence>
+        {showProgressModal && (
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="mb-3 p-2.5 rounded-xl bg-gradient-to-r from-rose-50 to-red-50 border border-rose-200 text-rose-900 text-xs flex items-center gap-2 shadow-md"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           >
-            <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-            <span className="font-medium">{error}</span>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 relative overflow-hidden"
+            >
+              {/* Animated Background */}
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 opacity-50"></div>
+              
+              {/* Content */}
+              <div className="relative z-10">
+                {/* Icon */}
+                <div className="flex justify-center mb-6">
+                  <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center shadow-lg">
+                    <ScanBarcode className={`w-10 h-10 text-white ${generationProgress < 100 ? 'animate-pulse' : ''}`} />
+                  </div>
+                </div>
+
+                {/* Title */}
+                <h3 className="text-2xl font-bold text-center text-slate-900 mb-2">
+                  Generating Barcodes
+                </h3>
+                <p className="text-center text-slate-600 mb-6">
+                  Please wait while we generate {batchQuantity} barcode{batchQuantity > 1 ? 's' : ''}...
+                </p>
+
+                {/* Progress Bar */}
+                <div className="mb-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-semibold text-slate-700">Progress</span>
+                    <span className="text-lg font-bold text-blue-600">{generationProgress}%</span>
+                  </div>
+                  <div className="w-full h-4 bg-slate-200 rounded-full overflow-hidden shadow-inner">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${generationProgress}%` }}
+                      transition={{ duration: 0.3, ease: "easeOut" }}
+                      className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 rounded-full relative overflow-hidden"
+                    >
+                      {/* Shimmer effect */}
+                      <div 
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                        style={{
+                          animation: 'shimmer 2s infinite',
+                          backgroundSize: '200% 100%'
+                        }}
+                      ></div>
+                    </motion.div>
+                  </div>
+                </div>
+
+                {/* Status Messages */}
+                <div className="text-center">
+                  {generationProgress < 30 && (
+                    <p className="text-sm text-slate-600 animate-pulse">
+                      🔄 Initializing barcode generation...
+                    </p>
+                  )}
+                  {generationProgress >= 30 && generationProgress < 60 && (
+                    <p className="text-sm text-slate-600 animate-pulse">
+                      🏷️ Creating unique barcode values...
+                    </p>
+                  )}
+                  {generationProgress >= 60 && generationProgress < 90 && (
+                    <p className="text-sm text-slate-600 animate-pulse">
+                      📊 Generating QR codes for traceability...
+                    </p>
+                  )}
+                  {generationProgress >= 90 && generationProgress < 100 && (
+                    <p className="text-sm text-slate-600 animate-pulse">
+                      ✅ Finalizing and saving barcodes...
+                    </p>
+                  )}
+                  {generationProgress === 100 && (
+                    <p className="text-sm text-green-600 font-semibold">
+                      ✨ Complete! Barcodes generated successfully.
+                    </p>
+                  )}
+                </div>
+
+                {/* Loading Dots */}
+                {generationProgress < 100 && (
+                  <div className="flex justify-center gap-2 mt-6">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  </div>
+                )}
+              </div>
+
+              {/* Inline shimmer animation */}
+              <style jsx>{`
+                @keyframes shimmer {
+                  0% { background-position: -200% 0; }
+                  100% { background-position: 200% 0; }
+                }
+              `}</style>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

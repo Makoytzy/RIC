@@ -6,6 +6,7 @@
  * ============================================================================
  */
 
+import supabaseAdmin from '../config/supabaseAdmin.js';
 import {
   createBarcodes,
   getBarcodes,
@@ -67,13 +68,13 @@ export async function createBarcodeController(req, res) {
  * Get list of barcodes with traceability info
  * 
  * Query params:
- * - limit: number (default 50, max 500)
+ * - limit: number (optional, no default limit to fetch all barcodes)
  */
 export async function getBarcodesController(req, res) {
   try {
-    const limit = req.query.limit || 50;
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
 
-    console.log(`📋 Loading ${limit} barcodes...`);
+    console.log(`📋 Loading ${limit ? limit : 'ALL'} barcodes...`);
 
     const barcodes = await getBarcodes({ limit });
 
@@ -202,6 +203,64 @@ export async function deactivateBarcodeController(req, res) {
     return res.status(500).json({
       success: false,
       error: 'Failed to deactivate barcode'
+    });
+  }
+}
+
+
+/**
+ * ============================================================================
+ * DELETE BARCODE CONTROLLER
+ * ============================================================================
+ * Hard delete a barcode from the database
+ * ============================================================================
+ */
+
+/**
+ * Delete barcode (hard delete)
+ * @route DELETE /api/barcodes/:id
+ */
+export async function deleteBarcodeController(req, res) {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Barcode ID is required'
+      });
+    }
+
+    console.log(`🗑️ Deleting barcode: ${id}`);
+
+    // Delete from database
+    const { data, error } = await supabaseAdmin
+      .from('barcodes')
+      .delete()
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Database delete error:', error);
+      return res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to delete barcode'
+      });
+    }
+
+    console.log(`✅ Barcode deleted successfully: ${id}`);
+
+    return res.json({
+      success: true,
+      message: 'Barcode deleted successfully',
+      barcode: data
+    });
+  } catch (error) {
+    console.error('❌ Delete barcode error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to delete barcode'
     });
   }
 }

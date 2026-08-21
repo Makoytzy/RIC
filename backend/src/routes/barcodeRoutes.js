@@ -12,7 +12,8 @@ import {
   getBarcodesController,
   getBarcodeConfigController,
   getTraceabilityController,
-  deactivateBarcodeController
+  deactivateBarcodeController,
+  deleteBarcodeController
 } from '../controllers/barcodeController.js';
 
 const router = express.Router();
@@ -46,5 +47,11 @@ router.get('/trace/:barcodeValue', getTraceabilityController);
  * Deactivate a barcode (soft delete)
  */
 router.patch('/:id/deactivate', deactivateBarcodeController);
+
+/**
+ * DELETE /api/barcodes/:id
+ * Delete a barcode (hard delete)
+ */
+router.delete('/:id', deleteBarcodeController);
 
 export default router;

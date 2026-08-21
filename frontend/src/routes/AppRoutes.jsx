@@ -157,12 +157,18 @@ export default function AppRoutes() {
             <Route path="/products"             element={<ProductsList />} />
             <Route path="/products/list"        element={<ProductsList />} />
             <Route path="/products/register"    element={<ProductRegistration />} />
+            <Route path="/products/catalog"     element={<ProductsList />} />
+            <Route path="/products/lookup"      element={<ProductsList />} />
             <Route path="/products/search"      element={<ProductsList />} />
             <Route path="/expected-inventory"   element={<ExpectedInventory />} />
             <Route path="/barcode/prepare"      element={<BarcodePreparation />} />
             <Route path="/barcode/generate"     element={<BarcodeGeneration />} />
             <Route path="/barcode/labels"       element={<BarcodeGeneration />} />
+            <Route path="/barcode/print"        element={<BarcodeGeneration />} />
             <Route path="/batches"              element={<BatchManagement />} />
+            <Route path="/batches/manage"       element={<BatchManagement />} />
+            <Route path="/batches/waybills"     element={<Waybill />} />
+            <Route path="/orders/process"       element={<OrderManagement />} />
             <Route path="/inventory/register"   element={<InventoryRegistration />} />
             <Route path="/inventory/update"     element={<InventoryUpdate />} />
             <Route path="/packing-slip"         element={<PackingSlip />} />
@@ -214,13 +220,18 @@ export default function AppRoutes() {
             <Route path="/shipments/incoming" element={<IncomingShipments />} />
           </Route>
 
+          {/* Process Returns: Operational(full) - Enhanced returns processing page */}
+          <Route element={<RoleRoute allowed={[OP, A]} />}>
+            <Route path="/shipments/returns" element={<Returns />} />
+          </Route>
+
           {/* Inventory: Admin(full) | Manager(view) | Warehouse(view) */}
           <Route element={<RoleRoute allowed={[A, M, WH]} />}>
             <Route path="/inventory" element={<Inventory />} />
           </Route>
 
-          {/* Warehouse / Storage Locations: Admin | Manager | Warehouse */}
-          <Route element={<RoleRoute allowed={[A, M, WH]} />}>
+          {/* Warehouse / Storage Locations: Admin | Manager | Warehouse | Operational */}
+          <Route element={<RoleRoute allowed={[A, M, WH, OP]} />}>
             <Route path="/warehouse" element={<WarehouseLocations />} />
           </Route>
 
@@ -244,13 +255,13 @@ export default function AppRoutes() {
             <Route path="/orders" element={<Orders />} />
           </Route>
 
-          {/* Returns: Manager(approve) | Warehouse(inspect) | Sales(create) */}
-          <Route element={<RoleRoute allowed={[M, WH, SA, A]} />}>
+          {/* Returns: Manager(approve) | Warehouse(inspect) | Sales(create) | Operational(process) */}
+          <Route element={<RoleRoute allowed={[M, WH, SA, OP, A]} />}>
             <Route path="/returns" element={<Returns />} />
           </Route>
 
-          {/* Barcode Scanner: Warehouse(full) | Sales(verify) */}
-          <Route element={<RoleRoute allowed={[WH, SA, A]} />}>
+          {/* Barcode Scanner: Warehouse(full) | Sales(verify) | Operational(monitoring) */}
+          <Route element={<RoleRoute allowed={[WH, SA, OP, A]} />}>
             <Route path="/barcode/scan" element={<BarcodeScanner />} />
           </Route>
 
