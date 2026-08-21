@@ -20,7 +20,7 @@ export async function getShipments(req, res) {
       .from('shipments')
       .select(`
         *,
-        suppliers!fk_shipments_supplier (
+        suppliers:supplier_id (
           id,
           name,
           contact_person,
@@ -85,7 +85,7 @@ export async function getShipmentById(req, res) {
       .from('shipments')
       .select(`
         *,
-        suppliers!fk_shipments_supplier (
+        suppliers:supplier_id (
           id,
           name,
           contact_person,
@@ -105,13 +105,13 @@ export async function getShipmentById(req, res) {
           email,
           full_name
         ),
-        batches!fk_batches_shipment (
+        batches:id (
           id,
           batch_number,
           batch_month,
           batch_year,
           status,
-          products!fk_batches_product (
+          products:product_id (
             id,
             sku,
             brand,
@@ -193,7 +193,7 @@ export async function createShipment(req, res) {
       })
       .select(`
         *,
-        suppliers!fk_shipments_supplier (
+        suppliers:supplier_id (
           id,
           name,
           contact_person,
@@ -251,7 +251,7 @@ export async function updateShipment(req, res) {
       .eq('id', id)
       .select(`
         *,
-        suppliers!fk_shipments_supplier (
+        suppliers:supplier_id (
           id,
           name,
           contact_person,

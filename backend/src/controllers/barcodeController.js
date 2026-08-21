@@ -32,21 +32,30 @@ export async function createBarcodeController(req, res) {
       productId,
       batchId,
       shipmentId,
-      quantity = 1
+      quantity = 1,
+      warehouseId,
+      rackId,
+      rackLocationId
     } = req.body;
 
     console.log('📦 Barcode generation request:', {
       productId,
       batchId,
       shipmentId,
-      quantity
+      quantity,
+      warehouseId,
+      rackId,
+      rackLocationId
     });
 
     const result = await createBarcodes({
       productId,
       batchId,
       shipmentId,
-      quantity: Number(quantity)
+      quantity: Number(quantity),
+      warehouseId,
+      rackId,
+      rackLocationId
     });
 
     return res.status(201).json({

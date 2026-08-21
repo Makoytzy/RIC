@@ -47,7 +47,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/products', productRoutes);
 
 // Warehouse Operations & Facilities
-app.use('/api/warehouse', warehouseRoutes);
+app.use('/api', warehouseRoutes);
 
 // Capacity Rules & Barcodes
 app.use('/api/capacity-rules', capacityRuleRoutes);

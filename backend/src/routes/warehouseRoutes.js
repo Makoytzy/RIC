@@ -1,96 +1,52 @@
+/**
+ * ============================================================================
+ * WAREHOUSE ROUTES
+ * ============================================================================
+ */
+
 import express from 'express';
-import * as warehouseController from '../controllers/warehouseController.js';
+import {
+  getWarehouses,
+  getRacks,
+  getRackLocations,
+  relocateInventoryUnit,
+  scanInventoryUnit
+} from '../controllers/warehouseController.js';
 import { authenticate } from '../middleware/authMiddleware.js';
-import { authorize } from '../middleware/roleMiddleware.js';
+import { requireRole } from '../middleware/roleMiddleware.js';
 
 const router = express.Router();
 
-// All warehouse routes require authentication
-router.use(authenticate);
+// ============================================================================
+// PUBLIC ROUTES (for warehouse staff scanning)
+// ============================================================================
 
-// ============================================
-// RECEIVING ROUTES
-// ============================================
-router.get('/receiving',
-  authorize('warehouse_staff', 'manager', 'admin'),
-  warehouseController.getReceivingShipments
-);
+// Scan barcode (read-only for warehouse staff)
+router.get('/scan/:barcode_value', authenticate, scanInventoryUnit);
 
-router.post('/receiving/:id/receive',
-  authorize('warehouse_staff'),
-  warehouseController.receiveShipment
-);
+// ============================================================================
+// AUTHENTICATED ROUTES
+// ============================================================================
 
-// ============================================
-// WAREHOUSE FACILITIES & LOCATIONS ROUTES
-// ============================================
-router.get('/facilities',
-  authorize('admin', 'manager', 'operational_staff', 'warehouse_staff', 'sales_staff'),
-  warehouseController.getFacilities
-);
+// Get warehouses
+router.get('/warehouses', authenticate, getWarehouses);
 
-router.post('/facilities',
-  authorize('admin', 'manager'),
-  warehouseController.createFacility
-);
+// Get racks
+router.get('/racks', authenticate, getRacks);
 
-router.get('/locations',
-  authorize('admin', 'manager', 'operational_staff', 'warehouse_staff', 'sales_staff'),
-  warehouseController.getLocations
-);
+// Get rack locations
+router.get('/rack-locations', authenticate, getRackLocations);
 
-router.post('/locations',
-  authorize('admin', 'manager', 'operational_staff'),
-  warehouseController.createLocation
-);
+// ============================================================================
+// OPERATIONAL STAFF & MANAGER ONLY
+// ============================================================================
 
-router.put('/locations/:id',
-  authorize('admin', 'manager', 'operational_staff'),
-  warehouseController.updateLocation
-);
-
-router.delete('/locations/:id',
-  authorize('admin'),
-  warehouseController.deleteLocation
-);
-
-// ============================================
-// INSPECTION ROUTES
-// ============================================
-router.get('/inspection',
-  authorize('warehouse_staff', 'manager', 'admin'),
-  warehouseController.getInspectionQueue
-);
-
-router.post('/inspection/:id/complete',
-  authorize('warehouse_staff'),
-  warehouseController.completeInspection
-);
-
-// ============================================
-// PICKING ROUTES
-// ============================================
-router.get('/picking',
-  authorize('warehouse_staff', 'manager', 'admin'),
-  warehouseController.getPickingTasks
-);
-
-router.post('/picking/:id/complete',
-  authorize('warehouse_staff'),
-  warehouseController.completePicking
-);
-
-// ============================================
-// PACKING ROUTES
-// ============================================
-router.get('/packing',
-  authorize('warehouse_staff', 'manager', 'admin'),
-  warehouseController.getPackingTasks
-);
-
-router.post('/packing/:id/complete',
-  authorize('warehouse_staff'),
-  warehouseController.completePacking
+// Relocate inventory (operational staff and manager only)
+router.post(
+  '/inventory/relocate',
+  authenticate,
+  requireRole('operational_staff', 'manager'),
+  relocateInventoryUnit
 );
 
 export default router;

@@ -47,6 +47,7 @@ import ProductRegistration from '../pages/dashboard/operational/ProductRegistrat
 import ExpectedInventory   from '../pages/dashboard/operational/ExpectedInventory.jsx';
 import BarcodePreparation  from '../pages/dashboard/operational/BarcodePreparation.jsx';
 import BarcodeGeneration   from '../pages/dashboard/operational/BarcodeGeneration.jsx';
+import RelocateInventory   from '../pages/dashboard/operational/RelocateInventory.jsx';
 import BatchManagement     from '../pages/dashboard/operational/BatchManagement.jsx';
 import InventoryRegistration from '../pages/dashboard/operational/InventoryRegistration.jsx';
 import InventoryUpdate     from '../pages/dashboard/operational/InventoryUpdate.jsx';
@@ -58,6 +59,7 @@ import Waybill             from '../pages/dashboard/operational/Waybill.jsx';
 // ── Warehouse Staff ───────────────────────────────────────────
 import Receiving           from '../pages/dashboard/warehouse/Receiving.jsx';
 import BarcodeScanner      from '../pages/dashboard/warehouse/BarcodeScanner.jsx';
+import ScanProducts        from '../pages/dashboard/warehouse/ScanProducts.jsx';
 import InventoryCount      from '../pages/dashboard/warehouse/InventoryCount.jsx';
 import LocationLookup      from '../pages/dashboard/warehouse/LocationLookup.jsx';
 import Inspection          from '../pages/dashboard/warehouse/Inspection.jsx';
@@ -165,6 +167,7 @@ export default function AppRoutes() {
             <Route path="/barcode/generate"     element={<BarcodeGeneration />} />
             <Route path="/barcode/labels"       element={<BarcodeGeneration />} />
             <Route path="/barcode/print"        element={<BarcodeGeneration />} />
+            <Route path="/inventory/relocate"   element={<RelocateInventory />} />
             <Route path="/batches"              element={<BatchManagement />} />
             <Route path="/batches/manage"       element={<BatchManagement />} />
             <Route path="/batches/waybills"     element={<Waybill />} />
@@ -182,6 +185,7 @@ export default function AppRoutes() {
           ═══════════════════════════════════════════════════ */}
           <Route element={<RoleRoute allowed={[WH, M, A]} />}>
             <Route path="/receiving"           element={<Receiving />} />
+            <Route path="/warehouse/scan"      element={<ScanProducts />} />
             <Route path="/inspection"          element={<Inspection />} />
             <Route path="/packing"             element={<Packing />} />
             <Route path="/picking/fifo"        element={<FifoPicking />} />

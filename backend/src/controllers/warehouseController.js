@@ -1,429 +1,166 @@
-import { supabaseAdmin as supabase } from '../config/supabase.js';
-import { logger } from '../utils/logger.js';
-
 /**
- * Warehouse Controller
- * Handles receiving, inspection, picking, packing, and warehouse locations
+ * ============================================================================
+ * WAREHOUSE CONTROLLER
+ * ============================================================================
+ * Handles warehouse locations, racks, and positions
+ * ============================================================================
  */
 
-// ── Shared helpers ────────────────────────────────────────────────────────────
+import { supabaseAdmin } from '../config/supabase.js';
 
 /**
- * Returns true when the Supabase / PostgREST error indicates the table
- * does not exist yet (migration not run).
+ * GET /api/warehouses
+ * Get all warehouse locations
  */
-function isTableMissingError(error) {
-  const msg  = (error?.message || '').toLowerCase();
-  const hint = (error?.hint    || '').toLowerCase();
-  const code =  error?.code    || '';
-  return (
-    code === '42P01'    ||
-    code === 'PGRST116' ||
-    code === 'PGRST200' ||
-    code === 'PGRST205' ||   // schema cache miss
-    msg.includes('does not exist') ||
-    msg.includes('relation')       ||
-    msg.includes('schema cache')   ||
-    hint.includes('does not exist')||
-    hint.includes('relation')
-  );
+export async function getWarehouses(req, res) {
+  try {
+    console.log('🏭 GET /api/warehouses - Fetching warehouses...');
+    
+    // Only get distinct warehouse codes (not individual positions)
+    const { data, error } = await supabaseAdmin
+      .from('warehouse_locations')
+      .select('*')
+      .eq('status', 'active')
+      .eq('name', 'Main Warehouse')  // Only get "Main Warehouse" records
+      .order('name')
+      .limit(1);  // Just get the first one
+
+    if (error) {
+      console.error('❌ Warehouse query error:', error);
+      throw error;
+    }
+
+    console.log(`✅ Found ${data?.length || 0} warehouse locations`);
+    if (data && data.length > 0) {
+      console.log('📦 Main warehouse:', { id: data[0].id, name: data[0].name, code: data[0].code });
+    }
+
+    return res.json({
+      success: true,
+      warehouses: data || []
+    });
+  } catch (error) {
+    console.error('❌ Get warehouses error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to load warehouses'
+    });
+  }
 }
 
-/** UUID v4 regex — rejects plain integers like '3' before they hit the DB. */
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/**
+ * GET /api/racks
+ * Get racks filtered by warehouse and/or size category
+ * Query params: warehouse_id, size_category
+ */
+export async function getRacks(req, res) {
+  try {
+    const { warehouse_id, size_category } = req.query;
+    
+    // Set cache-control headers to prevent 304 caching issues
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+    
+    console.log('🏗️ GET /api/racks');
+    console.log('   warehouse_id:', warehouse_id);
+    console.log('   size_category:', size_category);
 
-function isValidUUID(id) {
-  return UUID_RE.test(id);
+    let query = supabaseAdmin
+      .from('rack_configurations')
+      .select(`
+        *,
+        warehouse:warehouse_locations(id, name, code)
+      `)
+      .in('status', ['active', 'full'])
+      .order('rack_number');
+
+    if (warehouse_id) {
+      query = query.eq('warehouse_id', warehouse_id);
+    }
+
+    if (size_category) {
+      query = query.eq('size_category', size_category);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('❌ Rack query error:', error);
+      console.error('❌ Error details:', JSON.stringify(error, null, 2));
+      throw error;
+    }
+
+    console.log(`✅ Found ${data?.length || 0} racks`);
+    if (data && data.length > 0) {
+      console.log('📦 Sample rack:', data[0]);
+    } else {
+      console.warn('⚠️ NO RACKS FOUND! Query params:', { warehouse_id, size_category });
+      
+      // Try to diagnose the issue - test without filters
+      console.log('🔍 Testing: Can we see ANY racks at all?');
+      const { data: allRacks, error: allRacksError } = await supabaseAdmin
+        .from('rack_configurations')
+        .select('id, warehouse_id, rack_code, size_category, status');
+      
+      if (allRacksError) {
+        console.error('❌ Error fetching all racks:', allRacksError);
+      } else {
+        console.log(`🔍 Total racks in database (no filter): ${allRacks?.length || 0}`);
+        if (allRacks && allRacks.length > 0) {
+          console.log('🔍 Sample of ALL racks:', allRacks.slice(0, 3));
+          console.log('🔍 Warehouse IDs in database:', [...new Set(allRacks.map(r => r.warehouse_id))]);
+          console.log('🔍 Size categories in database:', [...new Set(allRacks.map(r => r.size_category))]);
+          console.log('🔍 Requested warehouse_id:', warehouse_id);
+          console.log('🔍 Requested size_category:', size_category);
+          console.log('🔍 Do any racks match warehouse?', allRacks.some(r => r.warehouse_id === warehouse_id));
+          if (size_category) {
+            console.log('🔍 Do any racks match category?', allRacks.some(r => r.size_category === size_category));
+          }
+        } else {
+          console.log('❌ NO RACKS IN DATABASE AT ALL!');
+        }
+      }
+    }
+
+    return res.json({
+      success: true,
+      racks: data || []
+    });
+  } catch (error) {
+    console.error('❌ Get racks error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to load racks'
+    });
+  }
 }
 
-
-// ============================================
-// RECEIVING
-// ============================================
-
-export const getReceivingShipments = async (req, res) => {
+/**
+ * GET /api/rack-locations
+ * Get available positions in a rack
+ * Query params: rack_id, status
+ */
+export async function getRackLocations(req, res) {
   try {
-    const { status } = req.query;
-    
-    let query = supabase
-      .from('shipments')
+    const { rack_id, status } = req.query;
+
+    if (!rack_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'rack_id is required'
+      });
+    }
+
+    let query = supabaseAdmin
+      .from('rack_locations')
       .select('*')
-      .order('expected_date', { ascending: true });
-    
-    if (status) {
-      query = query.eq('status', status);
-    }
-
-    const { data, error } = await query;
-
-    if (error) throw error;
-
-    res.json({
-      shipments: data || [],
-      message: 'Shipments retrieved successfully'
-    });
-  } catch (error) {
-    logger.error('Error fetching shipments:', error);
-    res.status(500).json({ error: 'Failed to fetch shipments' });
-  }
-};
-
-export const receiveShipment = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { actualQuantity, condition, notes, location } = req.body;
-    const userId = req.user.id;
-
-    // Update shipment status
-    const { data: shipment, error: shipmentError } = await supabase
-      .from('shipments')
-      .update({
-        status: 'received',
-        actual_quantity: actualQuantity,
-        condition,
-        notes,
-        storage_location: location,
-        received_by: userId,
-        received_date: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (shipmentError) throw shipmentError;
-
-    // Log the receiving activity
-    await supabase.from('activity_log').insert({
-      user_id: userId,
-      action: 'shipment_received',
-      entity_type: 'shipment',
-      entity_id: id,
-      details: { actualQuantity, condition, location }
-    });
-
-    res.json({
-      shipment,
-      message: 'Shipment received successfully'
-    });
-  } catch (error) {
-    logger.error('Error receiving shipment:', error);
-    res.status(500).json({ error: 'Failed to receive shipment' });
-  }
-};
-
-// ============================================
-// WAREHOUSE LOCATIONS
-// ============================================
-
-export const getLocations = async (req, res) => {
-  try {
-    const { zone, status } = req.query;
-
-    let query = supabase
-      .from('warehouse_locations')
-      .select('*')
-      .order('code', { ascending: true });
-
-    if (zone) query = query.eq('zone', zone);
-    if (status) query = query.eq('status', status);
-
-    const { data, error } = await query;
-
-    if (error) {
-      // Log the full error so we can diagnose exactly what's happening
-      logger.error('Supabase error fetching warehouse_locations:', {
-        code:    error.code,
-        message: error.message,
-        details: error.details,
-        hint:    error.hint,
-      });
-
-      // If the table simply doesn't exist yet (migration 008 not run),
-      // return an empty list rather than crashing with a 500.
-      // Supabase / PostgREST can return the table-missing error in several ways:
-      //   - PostgreSQL code 42P01 (undefined_table)
-      //   - HTTP 404 from PostgREST with code "PGRST116" or "PGRST200"
-      //   - message containing "does not exist", "relation", or "schema cache"
-      const errorMsg  = (error.message  || '').toLowerCase();
-      const errorCode = (error.code     || '');
-      const errorHint = (error.hint     || '').toLowerCase();
-
-      const isTableMissing =
-        errorCode === '42P01'                         ||  // pg: undefined_table
-        errorCode === 'PGRST116'                      ||  // postgrest: not found
-        errorCode === 'PGRST200'                      ||  // postgrest: schema cache miss
-        errorMsg.includes('does not exist')           ||
-        errorMsg.includes('relation')                 ||
-        errorMsg.includes('schema cache')             ||
-        errorHint.includes('does not exist')          ||
-        errorHint.includes('relation');
-
-      if (isTableMissing) {
-        logger.warn('warehouse_locations table not found — run migration 008_warehouse_locations.sql in Supabase');
-        return res.json({ locations: [], message: 'Locations table not configured yet' });
-      }
-
-      throw error;
-    }
-
-    // Map snake_case DB columns → camelCase for the frontend
-    const locations = (data || []).map((row) => ({
-      id:           row.id,
-      code:         row.code,
-      name:         row.name,
-      zone:         row.zone,
-      aisle:        row.aisle,
-      rack:         row.rack,
-      shelf:        row.shelf,
-      capacity:     row.capacity,
-      currentStock: row.current_stock,   // ← snake_case → camelCase
-      status:       row.status,
-      createdAt:    row.created_at,
-      updatedAt:    row.updated_at,
-    }));
-
-    res.json({
-      locations,
-      message: 'Locations retrieved successfully'
-    });
-  } catch (error) {
-    logger.error('Error fetching locations:', error);
-    res.status(500).json({ error: 'Failed to fetch locations' });
-  }
-};
-
-
-export const createLocation = async (req, res) => {
-  try {
-    const { currentStock, ...rest } = req.body;
-    const userId = req.user.id;
-
-    // Translate camelCase → snake_case for DB insert
-    const dbPayload = {
-      ...rest,
-      ...(currentStock !== undefined && { current_stock: Number(currentStock) }),
-      created_by: userId,
-      created_at: new Date().toISOString(),
-    };
-
-    const { data, error } = await supabase
-      .from('warehouse_locations')
-      .insert(dbPayload)
-      .select()
-      .single();
-
-    if (error) {
-      logger.error('Supabase error creating location:', { code: error.code, message: error.message });
-      if (isTableMissingError(error)) {
-        return res.status(503).json({ error: 'Warehouse locations table not configured yet. Run migration 008_warehouse_locations.sql in Supabase.' });
-      }
-      throw error;
-    }
-
-    // Log activity (best-effort — don't fail the request if activity_log is missing)
-    try {
-      await supabase.from('activity_log').insert({
-        user_id: userId,
-        action: 'location_created',
-        entity_type: 'warehouse_location',
-        entity_id: data.id,
-        details: req.body,
-      });
-    } catch (logErr) {
-      logger.warn('activity_log insert failed (non-fatal):', logErr.message);
-    }
-
-    res.status(201).json({
-      location: { ...data, currentStock: data.current_stock },
-      message: 'Location created successfully',
-    });
-  } catch (error) {
-    logger.error('Error creating location:', error);
-    res.status(500).json({ error: 'Failed to create location' });
-  }
-};
-
-export const updateLocation = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    // Reject non-UUID ids (e.g. integer mock-data ids like '3')
-    if (!isValidUUID(id)) {
-      return res.status(400).json({ error: `Invalid location id: '${id}'. Expected a UUID.` });
-    }
-
-    const { currentStock, ...rest } = req.body;
-    const userId = req.user.id;
-
-    // Translate camelCase → snake_case for DB update
-    const dbPayload = {
-      ...rest,
-      ...(currentStock !== undefined && { current_stock: Number(currentStock) }),
-      updated_by: userId,
-      updated_at: new Date().toISOString(),
-    };
-
-    const { data, error } = await supabase
-      .from('warehouse_locations')
-      .update(dbPayload)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      logger.error('Supabase error updating location:', { code: error.code, message: error.message });
-      if (isTableMissingError(error)) {
-        return res.status(503).json({ error: 'Warehouse locations table not configured yet. Run migration 008_warehouse_locations.sql in Supabase.' });
-      }
-      throw error;
-    }
-
-    // Log activity (best-effort)
-    try {
-      await supabase.from('activity_log').insert({
-        user_id: userId,
-        action: 'location_updated',
-        entity_type: 'warehouse_location',
-        entity_id: id,
-        details: req.body,
-      });
-    } catch (logErr) {
-      logger.warn('activity_log insert failed (non-fatal):', logErr.message);
-    }
-
-    res.json({
-      location: { ...data, currentStock: data.current_stock },
-      message: 'Location updated successfully',
-    });
-  } catch (error) {
-    logger.error('Error updating location:', error);
-    res.status(500).json({ error: 'Failed to update location' });
-  }
-};
-
-export const deleteLocation = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    // Reject non-UUID ids (e.g. integer mock-data ids like '3')
-    if (!isValidUUID(id)) {
-      return res.status(400).json({ error: `Invalid location id: '${id}'. Expected a UUID. This location exists only as mock data and cannot be deleted from the database.` });
-    }
-
-    const userId = req.user.id;
-
-    const { error } = await supabase
-      .from('warehouse_locations')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      logger.error('Supabase error deleting location:', { code: error.code, message: error.message });
-      if (isTableMissingError(error)) {
-        return res.status(503).json({ error: 'Warehouse locations table not configured yet. Run migration 008_warehouse_locations.sql in Supabase.' });
-      }
-      throw error;
-    }
-
-    // Log activity (best-effort)
-    try {
-      await supabase.from('activity_log').insert({
-        user_id: userId,
-        action: 'location_deleted',
-        entity_type: 'warehouse_location',
-        entity_id: id,
-      });
-    } catch (logErr) {
-      logger.warn('activity_log insert failed (non-fatal):', logErr.message);
-    }
-
-    res.json({ message: 'Location deleted successfully' });
-  } catch (error) {
-    logger.error('Error deleting location:', error);
-    res.status(500).json({ error: 'Failed to delete location' });
-  }
-};
-
-// ============================================
-// INSPECTION
-// ============================================
-
-export const getInspectionQueue = async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('shipments')
-      .select('*')
-      .eq('status', 'received')
-      .is('inspection_completed', false)
-      .order('received_date', { ascending: true });
-
-    if (error) throw error;
-
-    res.json({
-      items: data || [],
-      message: 'Inspection queue retrieved successfully'
-    });
-  } catch (error) {
-    logger.error('Error fetching inspection queue:', error);
-    res.status(500).json({ error: 'Failed to fetch inspection queue' });
-  }
-};
-
-export const completeInspection = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { qualityStatus, defects, notes } = req.body;
-    const userId = req.user.id;
-
-    const { data, error } = await supabase
-      .from('shipments')
-      .update({
-        inspection_completed: true,
-        quality_status: qualityStatus,
-        defects,
-        inspection_notes: notes,
-        inspected_by: userId,
-        inspection_date: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // Log activity
-    await supabase.from('activity_log').insert({
-      user_id: userId,
-      action: 'inspection_completed',
-      entity_type: 'shipment',
-      entity_id: id,
-      details: { qualityStatus, defects, notes }
-    });
-
-    res.json({
-      item: data,
-      message: 'Inspection completed successfully'
-    });
-  } catch (error) {
-    logger.error('Error completing inspection:', error);
-    res.status(500).json({ error: 'Failed to complete inspection' });
-  }
-};
-
-// ============================================
-// PICKING
-// ============================================
-
-export const getPickingTasks = async (req, res) => {
-  try {
-    const { status } = req.query;
-
-    let query = supabase
-      .from('picking_tasks')
-      .select('*, orders(*)')
-      .order('created_at', { ascending: true });
+      .eq('rack_id', rack_id)
+      .order('shelf_number')
+      .order('section_number')
+      .order('subsection_number');
 
     if (status) {
       query = query.eq('status', status);
@@ -433,187 +170,183 @@ export const getPickingTasks = async (req, res) => {
 
     if (error) throw error;
 
-    res.json({
-      tasks: data || [],
-      message: 'Picking tasks retrieved successfully'
+    return res.json({
+      success: true,
+      locations: data || []
     });
   } catch (error) {
-    logger.error('Error fetching picking tasks:', error);
-    res.status(500).json({ error: 'Failed to fetch picking tasks' });
-  }
-};
-
-export const completePicking = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { actualQuantity, notes } = req.body;
-    const userId = req.user.id;
-
-    const { data, error } = await supabase
-      .from('picking_tasks')
-      .update({
-        status: 'completed',
-        actual_quantity: actualQuantity,
-        notes,
-        picked_by: userId,
-        completed_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // Log activity
-    await supabase.from('activity_log').insert({
-      user_id: userId,
-      action: 'picking_completed',
-      entity_type: 'picking_task',
-      entity_id: id,
-      details: { actualQuantity, notes }
+    console.error('❌ Get rack locations error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to load rack locations'
     });
-
-    res.json({
-      task: data,
-      message: 'Picking task completed successfully'
-    });
-  } catch (error) {
-    logger.error('Error completing picking:', error);
-    res.status(500).json({ error: 'Failed to complete picking' });
   }
-};
+}
 
-// ============================================
-// PACKING
-// ============================================
-
-export const getPackingTasks = async (req, res) => {
+/**
+ * POST /api/inventory/relocate
+ * Relocate an inventory unit to new position
+ * Body: { inventory_unit_id, new_rack_location_id, reason, notes }
+ */
+export async function relocateInventoryUnit(req, res) {
   try {
-    const { status } = req.query;
+    const { inventory_unit_id, new_rack_location_id, reason, notes } = req.body;
+    const userId = req.user?.id;
 
-    let query = supabase
-      .from('packing_tasks')
-      .select('*, orders(*)')
-      .order('created_at', { ascending: true });
-
-    if (status) {
-      query = query.eq('status', status);
+    if (!inventory_unit_id || !new_rack_location_id || !reason) {
+      return res.status(400).json({
+        success: false,
+        error: 'inventory_unit_id, new_rack_location_id, and reason are required'
+      });
     }
 
-    const { data, error } = await query;
-
-    if (error) throw error;
-
-    res.json({
-      tasks: data || [],
-      message: 'Packing tasks retrieved successfully'
-    });
-  } catch (error) {
-    logger.error('Error fetching packing tasks:', error);
-    res.status(500).json({ error: 'Failed to fetch packing tasks' });
-  }
-};
-
-export const completePacking = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { packageWeight, dimensions, notes } = req.body;
-    const userId = req.user.id;
-
-    const { data, error } = await supabase
-      .from('packing_tasks')
-      .update({
-        status: 'completed',
-        package_weight: packageWeight,
-        dimensions,
-        notes,
-        packed_by: userId,
-        completed_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .select()
+    // Get current inventory unit
+    const { data: currentUnit, error: fetchError } = await supabaseAdmin
+      .from('inventory_units')
+      .select('*, barcodes(id)')
+      .eq('id', inventory_unit_id)
       .single();
 
-    if (error) throw error;
+    if (fetchError || !currentUnit) {
+      return res.status(404).json({
+        success: false,
+        error: 'Inventory unit not found'
+      });
+    }
 
-    // Log activity
-    await supabase.from('activity_log').insert({
-      user_id: userId,
-      action: 'packing_completed',
-      entity_type: 'packing_task',
-      entity_id: id,
-      details: { packageWeight, dimensions, notes }
-    });
+    // Get new location details
+    const { data: newLocation, error: locError } = await supabaseAdmin
+      .from('rack_locations')
+      .select('*, rack:rack_configurations(*)')
+      .eq('id', new_rack_location_id)
+      .single();
 
-    res.json({
-      task: data,
-      message: 'Packing task completed successfully'
-    });
-  } catch (error) {
-    logger.error('Error completing packing:', error);
-    res.status(500).json({ error: 'Failed to complete packing' });
-  }
-};
+    if (locError || !newLocation) {
+      return res.status(404).json({
+        success: false,
+        error: 'New rack location not found'
+      });
+    }
 
-// ============================================
-// WAREHOUSE FACILITIES
-// ============================================
+    // Check if new location has space
+    if (newLocation.available_space <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'New location is full'
+      });
+    }
 
-export const getFacilities = async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('warehouses')
-      .select('*')
-      .order('created_at', { ascending: true });
-
-    if (error) throw error;
-
-    res.json({
-      warehouses: data || [],
-      message: 'Warehouse facilities retrieved successfully'
-    });
-  } catch (error) {
-    logger.error('Error fetching facilities:', error);
-    res.status(500).json({ error: 'Failed to fetch warehouse facilities' });
-  }
-};
-
-export const createFacility = async (req, res) => {
-  try {
-    const { code, name, location, totalSlots, levelsData } = req.body;
-
-    const { data, error } = await supabase
-      .from('warehouses')
+    // Create relocation history record
+    const { error: historyError } = await supabaseAdmin
+      .from('inventory_relocation_history')
       .insert({
-        code,
-        name,
-        location,
-        total_slots: parseInt(totalSlots || 500, 10),
-        occupied_slots: 0,
-        status: 'active',
-        levels_data: levelsData || [],
+        inventory_unit_id,
+        barcode_id: currentUnit.barcodes?.[0]?.id,
+        from_rack_location_id: currentUnit.rack_location_id,
+        from_position_code: currentUnit.position_code,
+        to_rack_location_id: new_rack_location_id,
+        to_position_code: newLocation.position_code,
+        reason,
+        notes,
+        relocated_by: userId
+      });
+
+    if (historyError) throw historyError;
+
+    // Update inventory unit location
+    const { data: updatedUnit, error: updateError } = await supabaseAdmin
+      .from('inventory_units')
+      .update({
+        rack_location_id: new_rack_location_id,
+        rack_code: newLocation.rack.rack_code,
+        shelf_number: newLocation.shelf_number,
+        section_number: newLocation.section_number,
+        subsection_number: newLocation.subsection_number,
+        position_code: newLocation.position_code,
+        last_relocated_at: new Date().toISOString(),
+        relocation_count: (currentUnit.relocation_count || 0) + 1
       })
+      .eq('id', inventory_unit_id)
       .select()
       .single();
 
-    if (error) throw error;
+    if (updateError) throw updateError;
 
-    await supabase.from('activity_log').insert({
-      user_id: req.user?.id || null,
-      action: 'warehouse.facility_created',
-      category: 'Facilities',
-      severity: 'notice',
-      details: `Created new warehouse facility: ${name} (${code})`,
-      metadata: { code, name, totalSlots },
-    });
-
-    res.status(201).json({
-      facility: data,
-      message: 'Warehouse facility created successfully'
+    return res.json({
+      success: true,
+      inventory_unit: updatedUnit,
+      message: 'Inventory unit relocated successfully'
     });
   } catch (error) {
-    logger.error('Error creating facility:', error);
-    res.status(500).json({ error: 'Failed to create warehouse facility' });
+    console.error('❌ Relocate inventory error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to relocate inventory unit'
+    });
   }
-};
+}
 
+/**
+ * GET /api/inventory/scan/:barcode_value
+ * Scan and retrieve inventory unit details
+ */
+export async function scanInventoryUnit(req, res) {
+  try {
+    const { barcode_value } = req.params;
+
+    if (!barcode_value) {
+      return res.status(400).json({
+        success: false,
+        error: 'Barcode value is required'
+      });
+    }
+
+    // Get barcode with full traceability
+    const { data, error } = await supabaseAdmin
+      .rpc('get_barcodes_with_traceability', { p_limit: 1 })
+      .eq('barcode_value', barcode_value)
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({
+        success: false,
+        error: 'Barcode not found'
+      });
+    }
+
+    // Transform to expected format
+    const result = {
+      barcode_id: data.barcode_id,
+      barcode_value: data.barcode_value,
+      status: data.status,
+      product: {
+        id: data.product_id,
+        sku: data.product_sku,
+        brand: data.product_brand,
+        model: data.product_model
+      },
+      batch: {
+        id: data.batch_id,
+        batch_number: data.batch_number
+      },
+      warehouse_location: {
+        position_code: data.position_code || 'Not assigned',
+        rack_code: data.rack_code,
+        shelf: data.shelf_number,
+        section: data.section_number,
+        subsection: data.subsection_number
+      }
+    };
+
+    return res.json({
+      success: true,
+      inventory_unit: result
+    });
+  } catch (error) {
+    console.error('❌ Scan inventory error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to scan inventory unit'
+    });
+  }
+}

@@ -4,7 +4,7 @@ import {
   ScanBarcode, Barcode, Package, Printer, Download, QrCode,
   CheckCircle2, AlertTriangle, RefreshCw, Plus, X, Search,
   PackageCheck, Boxes, Copy, Eye, Settings, Edit, Trash2, ExternalLink,
-  ChevronDown, ChevronRight
+  ChevronDown, ChevronRight, MapPin, Truck
 } from 'lucide-react';
 import api from '../../../services/api.js';
 import PremiumModal from '../../../components/shared/PremiumModal.jsx';
@@ -14,12 +14,15 @@ export default function BarcodeGeneration() {
   const [products, setProducts] = useState([]);
   const [batches, setBatches] = useState([]);
   const [shipments, setShipments] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
+  const [racks, setRacks] = useState([]);
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [generatedBarcodes, setGeneratedBarcodes] = useState([]);
   const [selectedBarcodes, setSelectedBarcodes] = useState([]); // NEW: For bulk delete
   const [expandedFolders, setExpandedFolders] = useState([]); // NEW: Track expanded folders
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true); // NEW: Initial page load state
   const [refreshing, setRefreshing] = useState(false); // NEW: Refresh animation state
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
@@ -33,28 +36,61 @@ export default function BarcodeGeneration() {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showProgressModal, setShowProgressModal] = useState(false); // NEW: Progress modal
+  const [showDeleteProgressModal, setShowDeleteProgressModal] = useState(false); // NEW: Delete progress modal
   const [generationProgress, setGenerationProgress] = useState(0); // NEW: Progress percentage
+  const [deleteProgress, setDeleteProgress] = useState(0); // NEW: Delete progress percentage
   const [modalMessage, setModalMessage] = useState('');
   const [modalTitle, setModalTitle] = useState('');
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
+
+  // Traceability Panel States
+  const [showTraceabilityPanel, setShowTraceabilityPanel] = useState(false);
+  const [selectedBarcodeForTrace, setSelectedBarcodeForTrace] = useState(null);
+  const [traceabilityData, setTraceabilityData] = useState(null);
+  const [loadingTrace, setLoadingTrace] = useState(false);
 
   // Form data for barcode generation
   const [formData, setFormData] = useState({
     batchId: '',
     productId: '',
-    shipmentId: ''
+    shipmentId: '',
+    warehouseId: '',
+    rackId: '',
+    rackLocationId: ''
   });
 
   // Load barcode configuration
   useEffect(() => {
-    loadConfig();
-    loadProducts();
-    loadBatches();
-    loadShipments();
-    loadGeneratedBarcodes();
+    const initializeData = async () => {
+      setInitialLoading(true);
+      await Promise.all([
+        loadConfig(),
+        loadProducts(),
+        loadBatches(),
+        loadShipments(),
+        loadWarehouses(),
+        loadGeneratedBarcodes()
+      ]);
+      setInitialLoading(false);
+    };
+    
+    initializeData();
     // Auto-enable batch mode for easier workflow
     setBatchMode(true);
   }, []);
+
+  // Load racks when warehouse is selected (don't wait for product)
+  useEffect(() => {
+    if (formData.warehouseId) {
+      // If we have a product, filter by category
+      if (formData.productId) {
+        loadRacksForProduct(formData.productId);
+      } else {
+        // No product yet, load all racks for this warehouse
+        loadAllRacksForWarehouse(formData.warehouseId);
+      }
+    }
+  }, [formData.warehouseId, formData.productId]);
 
   const loadConfig = async () => {
     try {
@@ -126,6 +162,94 @@ export default function BarcodeGeneration() {
     } catch (err) {
       console.warn('Could not load shipments:', err);
       setShipments([]);
+    }
+  };
+
+  const loadWarehouses = async () => {
+    try {
+      const { data } = await api.get('/warehouses');
+      setWarehouses(data.warehouses || []);
+    } catch (err) {
+      console.warn('Could not load warehouses:', err);
+      setWarehouses([]);
+    }
+  };
+
+  const loadAllRacksForWarehouse = async (warehouseId) => {
+    if (!warehouseId) return;
+    
+    try {
+      console.log('🏭 Loading all racks for warehouse:', warehouseId);
+      console.log('🔍 Warehouse ID type:', typeof warehouseId);
+      console.log('🔍 Warehouse ID length:', warehouseId.length);
+      
+      // Add timestamp to bust cache (prevent 304 responses)
+      const timestamp = new Date().getTime();
+      const url = `/racks?warehouse_id=${warehouseId}&_t=${timestamp}`;
+      console.log('🌐 API URL:', url);
+      
+      const { data } = await api.get(url);
+      console.log('✅ Racks API response:', data);
+      console.log('📊 Number of racks returned:', data.racks?.length || 0);
+      
+      if (data.racks && data.racks.length > 0) {
+        console.log('📦 First rack details:', data.racks[0]);
+      }
+      
+      setRacks(data.racks || []);
+      
+      if (!data.racks || data.racks.length === 0) {
+        console.warn('⚠️ No racks found for warehouse:', warehouseId);
+        console.warn('💡 This means rack_configurations table has no records with this warehouse_id');
+        console.warn('💡 Check database: SELECT * FROM rack_configurations WHERE warehouse_id = \'' + warehouseId + '\'');
+      }
+    } catch (err) {
+      console.error('❌ Could not load racks:', err);
+      console.error('Error details:', err.response?.data || err.message);
+      setRacks([]);
+    }
+  };
+
+  const loadRacksForProduct = async (productId) => {
+    if (!productId || !formData.warehouseId) return;
+    
+    try {
+      // Get product to determine size category
+      const product = products.find(p => p.id === productId);
+      if (!product) {
+        console.warn('Product not found:', productId);
+        return;
+      }
+      
+      console.log('🔍 Loading racks for product:', product);
+      
+      // Use category field, or fallback to 'General' if not available
+      const sizeCategory = product.category || product.size_category || 'General';
+      
+      console.log('📦 Size category:', sizeCategory);
+      console.log('🏭 Warehouse ID:', formData.warehouseId);
+      
+      // Add timestamp to bust cache (prevent 304 responses)
+      const timestamp = new Date().getTime();
+      const url = `/racks?warehouse_id=${formData.warehouseId}&size_category=${encodeURIComponent(sizeCategory)}&_t=${timestamp}`;
+      console.log('🌐 API URL:', url);
+      
+      const { data } = await api.get(url);
+      console.log('✅ Racks response:', data);
+      
+      if (!data.racks || data.racks.length === 0) {
+        console.warn('⚠️ No racks found for category:', sizeCategory);
+        console.log('🔄 Falling back to load ALL racks for this warehouse...');
+        
+        // Fallback: Load all racks for this warehouse
+        await loadAllRacksForWarehouse(formData.warehouseId);
+      } else {
+        setRacks(data.racks || []);
+      }
+    } catch (err) {
+      console.error('❌ Could not load racks:', err);
+      console.error('Error details:', err.response?.data || err.message);
+      setRacks([]);
     }
   };
 
@@ -205,12 +329,25 @@ export default function BarcodeGeneration() {
     }, 200);
 
     try {
-      const { data } = await api.post('/barcodes', {
+      const requestData = {
         productId: formData.productId,
         batchId: formData.batchId,
         shipmentId: formData.shipmentId,
         quantity: batchQuantity
-      });
+      };
+
+      // Add warehouse location if provided
+      if (formData.warehouseId) {
+        requestData.warehouseId = formData.warehouseId;
+      }
+      if (formData.rackId) {
+        requestData.rackId = formData.rackId;
+      }
+      if (formData.rackLocationId) {
+        requestData.rackLocationId = formData.rackLocationId;
+      }
+
+      const { data } = await api.post('/barcodes', requestData);
 
       // Complete progress to 100%
       clearInterval(progressInterval);
@@ -226,11 +363,11 @@ export default function BarcodeGeneration() {
         // Add new barcodes to the beginning of the list (prepend)
         setGeneratedBarcodes(prev => [...data.barcodes, ...prev]);
         setModalTitle('Success!');
-        setModalMessage(`Successfully generated ${data.barcodes.length} barcode${data.barcodes.length > 1 ? 's' : ''}. They are now ready for printing or export.`);
+        setModalMessage(`Successfully generated ${data.barcodes.length} barcode${data.barcodes.length > 1 ? 's' : ''} and assigned to warehouse location. They are now ready for printing or export.`);
         setShowSuccessModal(true);
         setBatchQuantity(1);
         
-        // Reload all barcodes to ensure we have the latest data with proper limit
+        // Reload all barcodes to ensure we have the latest data
         await loadGeneratedBarcodes();
       }
     } catch (err) {
@@ -266,25 +403,46 @@ export default function BarcodeGeneration() {
     // Close delete modal immediately
     setShowDeleteModal(false);
 
-    // Optimistic update - remove from UI immediately
+    // Show delete progress modal
+    setShowDeleteProgressModal(true);
+    setDeleteProgress(0);
+
+    const totalCount = selectedBarcodes.length;
     const deletedBarcodes = generatedBarcodes.filter(b => selectedBarcodes.includes(b.id));
-    const deleteCount = selectedBarcodes.length;
-    setGeneratedBarcodes(prev => prev.filter(b => !selectedBarcodes.includes(b.id)));
-    setSelectedBarcodes([]);
 
     try {
-      // Delete all selected barcodes in parallel
-      await Promise.all(
-        selectedBarcodes.map(id => api.delete(`/barcodes/${id}`))
-      );
+      // Delete all selected barcodes one by one with progress updates
+      let completedCount = 0;
+      
+      for (const id of selectedBarcodes) {
+        await api.delete(`/barcodes/${id}`);
+        completedCount++;
+        
+        // Update progress
+        const progress = Math.round((completedCount / totalCount) * 100);
+        setDeleteProgress(progress);
+      }
+
+      // Wait a moment to show 100% before closing
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Close progress modal
+      setShowDeleteProgressModal(false);
+      
+      // Remove from UI
+      setGeneratedBarcodes(prev => prev.filter(b => !selectedBarcodes.includes(b.id)));
+      setSelectedBarcodes([]);
       
       console.log('✅ Bulk delete successful');
       setModalTitle('Deleted Successfully');
-      setModalMessage(`Successfully deleted ${deleteCount} barcode${deleteCount > 1 ? 's' : ''}.`);
+      setModalMessage(`Successfully deleted ${totalCount} barcode${totalCount > 1 ? 's' : ''}.`);
       setShowSuccessModal(true);
       setPendingDeleteId(null);
     } catch (err) {
       console.error('❌ Bulk delete failed:', err);
+      
+      // Close progress modal
+      setShowDeleteProgressModal(false);
       
       // Rollback - restore deleted barcodes on error
       setGeneratedBarcodes(prev => [...deletedBarcodes, ...prev]);
@@ -321,13 +479,39 @@ export default function BarcodeGeneration() {
     // Close delete modal immediately for better UX
     setShowDeleteModal(false);
 
+    // Show delete progress modal
+    setShowDeleteProgressModal(true);
+    setDeleteProgress(0);
+
+    // Simulate progress animation (single item deletes quickly)
+    const progressInterval = setInterval(() => {
+      setDeleteProgress(prev => {
+        if (prev >= 90) {
+          clearInterval(progressInterval);
+          return 90;
+        }
+        return prev + 30;
+      });
+    }, 100);
+
     // Optimistic update - remove from UI immediately
     const deletedBarcode = generatedBarcodes.find(b => b.id === pendingDeleteId);
     setGeneratedBarcodes(prev => prev.filter(b => b.id !== pendingDeleteId));
 
     try {
       await api.delete(`/barcodes/${pendingDeleteId}`);
+      
+      // Complete progress to 100%
+      clearInterval(progressInterval);
+      setDeleteProgress(100);
+      
+      // Wait a moment to show 100% before closing
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       console.log('✅ Delete successful');
+      
+      // Close progress modal
+      setShowDeleteProgressModal(false);
       
       // Show success modal
       setModalTitle('Deleted Successfully');
@@ -335,7 +519,11 @@ export default function BarcodeGeneration() {
       setShowSuccessModal(true);
       setPendingDeleteId(null);
     } catch (err) {
+      clearInterval(progressInterval);
       console.error('❌ Delete failed:', err);
+      
+      // Close progress modal
+      setShowDeleteProgressModal(false);
       
       // Rollback - restore the deleted barcode on error
       if (deletedBarcode) {
@@ -913,8 +1101,33 @@ export default function BarcodeGeneration() {
            (p.dimensions || '').toLowerCase().includes(searchLower);
   });
 
-  const viewTraceability = (barcode) => {
-    window.open(`/trace/${barcode.barcode_value}`, '_blank');
+  const viewTraceability = async (barcode) => {
+    setSelectedBarcodeForTrace(barcode);
+    setShowTraceabilityPanel(true);
+    setLoadingTrace(true);
+    
+    try {
+      // Use the correct endpoint that matches the backend route
+      const { data } = await api.get(`/barcodes/trace/${barcode.barcode_value}`);
+      
+      // The backend returns { success: true, traceability: {...} }
+      if (data?.success && data?.traceability) {
+        setTraceabilityData(data.traceability);
+      } else {
+        setTraceabilityData({
+          error: true,
+          message: 'No traceability data found'
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load traceability:', err);
+      setTraceabilityData({
+        error: true,
+        message: err.response?.data?.error || 'Failed to load traceability data'
+      });
+    } finally {
+      setLoadingTrace(false);
+    }
   };
 
   // NEW: Group barcodes by product for better organization
@@ -979,6 +1192,46 @@ export default function BarcodeGeneration() {
 
   return (
     <div className="bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 -m-6 p-4">
+      {/* Initial Loading State */}
+      {initialLoading ? (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white rounded-2xl shadow-xl p-8 max-w-md"
+            >
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <ScanBarcode className="w-10 h-10 text-white animate-pulse" />
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900 mb-3">Loading Barcode System</h2>
+              <div className="space-y-2 text-sm text-slate-600 mb-6">
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                  <span>Loading products...</span>
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                  <span>Loading batches...</span>
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  <span>Loading generated barcodes...</span>
+                </div>
+              </div>
+              <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                <motion.div
+                  initial={{ width: '0%' }}
+                  animate={{ width: '100%' }}
+                  transition={{ duration: 2, ease: 'easeInOut' }}
+                  className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"
+                />
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      ) : (
+        <>
       {/* Header */}
       <div className="mb-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -1155,7 +1408,116 @@ export default function BarcodeGeneration() {
               </div>
 
               {/* Inline shimmer animation */}
-              <style jsx>{`
+              <style>{`
+                @keyframes shimmer {
+                  0% { background-position: -200% 0; }
+                  100% { background-position: 200% 0; }
+                }
+              `}</style>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Progress Modal */}
+      <AnimatePresence>
+        {showDeleteProgressModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 relative overflow-hidden"
+            >
+              {/* Animated Background */}
+              <div className="absolute inset-0 bg-gradient-to-br from-red-50 via-orange-50 to-red-50 opacity-50"></div>
+              
+              {/* Content */}
+              <div className="relative z-10">
+                {/* Icon */}
+                <div className="flex justify-center mb-6">
+                  <div className="w-20 h-20 bg-gradient-to-br from-red-500 to-orange-600 rounded-full flex items-center justify-center shadow-lg">
+                    <Trash2 className={`w-10 h-10 text-white ${deleteProgress < 100 ? 'animate-pulse' : ''}`} />
+                  </div>
+                </div>
+
+                {/* Title */}
+                <h3 className="text-2xl font-bold text-center text-slate-900 mb-2">
+                  Deleting Barcodes
+                </h3>
+                <p className="text-center text-slate-600 mb-6">
+                  {pendingDeleteId === 'bulk' 
+                    ? `Please wait while we delete ${selectedBarcodes.length} barcode${selectedBarcodes.length > 1 ? 's' : ''}...`
+                    : 'Please wait while we delete this barcode...'
+                  }
+                </p>
+
+                {/* Progress Bar */}
+                <div className="mb-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-semibold text-slate-700">Progress</span>
+                    <span className="text-lg font-bold text-red-600">{deleteProgress}%</span>
+                  </div>
+                  <div className="w-full h-4 bg-slate-200 rounded-full overflow-hidden shadow-inner">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${deleteProgress}%` }}
+                      transition={{ duration: 0.3, ease: "easeOut" }}
+                      className="h-full bg-gradient-to-r from-red-500 via-orange-500 to-red-600 rounded-full relative overflow-hidden"
+                    >
+                      {/* Shimmer effect */}
+                      <div 
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                        style={{
+                          animation: 'shimmer 2s infinite',
+                          backgroundSize: '200% 100%'
+                        }}
+                      ></div>
+                    </motion.div>
+                  </div>
+                </div>
+
+                {/* Status Messages */}
+                <div className="text-center">
+                  {deleteProgress < 30 && (
+                    <p className="text-sm text-slate-600 animate-pulse">
+                      🗑️ Preparing to delete...
+                    </p>
+                  )}
+                  {deleteProgress >= 30 && deleteProgress < 70 && (
+                    <p className="text-sm text-slate-600 animate-pulse">
+                      🔄 Removing barcodes from database...
+                    </p>
+                  )}
+                  {deleteProgress >= 70 && deleteProgress < 100 && (
+                    <p className="text-sm text-slate-600 animate-pulse">
+                      ✅ Finalizing deletion...
+                    </p>
+                  )}
+                  {deleteProgress === 100 && (
+                    <p className="text-sm text-green-600 font-semibold">
+                      ✨ Complete! Barcodes deleted successfully.
+                    </p>
+                  )}
+                </div>
+
+                {/* Loading Dots */}
+                {deleteProgress < 100 && (
+                  <div className="flex justify-center gap-2 mt-6">
+                    <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-2 h-2 bg-red-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  </div>
+                )}
+              </div>
+
+              {/* Inline shimmer animation */}
+              <style>{`
                 @keyframes shimmer {
                   0% { background-position: -200% 0; }
                   100% { background-position: 200% 0; }
@@ -1225,7 +1587,7 @@ export default function BarcodeGeneration() {
                       </option>
                     ))}
                   </select>
-                  {batches.length === 0 && (
+                  {batches.length === 0 && !initialLoading && (
                     <p className="mt-1 text-xs text-amber-700">
                       No active batches. Create a batch in Batch Management first.
                     </p>
@@ -1248,6 +1610,80 @@ export default function BarcodeGeneration() {
                       })()}
                     </div>
                   </div>
+                )}
+
+                {/* Warehouse Location Section */}
+                {formData.batchId && (
+                  <>
+                    <div className="border-t border-amber-200 pt-3 mt-2">
+                      <label className="text-xs font-bold text-amber-900 block mb-2 flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5" />
+                        Warehouse Location *
+                      </label>
+                      
+                      {/* Warehouse Selector */}
+                      <div className="space-y-2">
+                        <select
+                          value={formData.warehouseId}
+                          onChange={(e) => {
+                            setFormData({
+                              ...formData,
+                              warehouseId: e.target.value,
+                              rackId: '',
+                              rackLocationId: ''
+                            });
+                            setRacks([]);
+                          }}
+                          className="w-full px-3 py-2 rounded-lg border border-amber-200 text-xs focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none"
+                        >
+                          <option value="">Select Warehouse...</option>
+                          {warehouses.map(wh => (
+                            <option key={wh.id} value={wh.id}>
+                              {wh.name} ({wh.code})
+                            </option>
+                          ))}
+                        </select>
+
+                        {/* Rack Selector */}
+                        {formData.warehouseId && (
+                          <select
+                            value={formData.rackId}
+                            onChange={(e) => {
+                              setFormData({
+                                ...formData,
+                                rackId: e.target.value,
+                                rackLocationId: ''
+                              });
+                            }}
+                            className="w-full px-3 py-2 rounded-lg border border-amber-200 text-xs focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none"
+                          >
+                            <option value="">Select Rack...</option>
+                            {racks.map(rack => (
+                              <option key={rack.id} value={rack.id}>
+                                {rack.rack_code} - {rack.designated_size} ({rack.current_count}/{rack.total_capacity} used)
+                              </option>
+                            ))}
+                          </select>
+                        )}
+
+                        {/* Position Info - Auto-assign only */}
+                        {formData.rackId && (
+                          <div className="px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-center gap-2">
+                            <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="font-semibold">Position will be auto-assigned</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {warehouses.length === 0 && (
+                        <p className="mt-2 text-xs text-amber-700">
+                          ⚠️ No warehouses configured. Contact admin to set up warehouse locations.
+                        </p>
+                      )}
+                    </div>
+                  </>
                 )}
 
                 {/* Quantity */}
@@ -1547,6 +1983,271 @@ export default function BarcodeGeneration() {
           </div>
         </div>
       </div>
+
+      {/* Traceability Slide-Out Panel */}
+      <AnimatePresence>
+        {showTraceabilityPanel && (
+          <>
+            {/* Overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowTraceabilityPanel(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+            />
+            
+            {/* Panel */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed right-0 top-0 bottom-0 w-full max-w-2xl bg-white shadow-2xl z-50 overflow-hidden flex flex-col"
+            >
+              {/* Panel Header */}
+              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                    <Eye className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold">Barcode Traceability</h2>
+                    <p className="text-indigo-100 text-sm">
+                      {selectedBarcodeForTrace?.barcode_value || 'Loading...'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowTraceabilityPanel(false)}
+                  className="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-all"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Panel Content */}
+              <div className="flex-1 overflow-y-auto p-6">
+                {loadingTrace ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <RefreshCw className="w-12 h-12 animate-spin text-indigo-600 mx-auto mb-4" />
+                      <p className="text-slate-600">Loading traceability data...</p>
+                    </div>
+                  </div>
+                ) : traceabilityData?.error ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center max-w-md px-6">
+                      <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <AlertTriangle className="w-10 h-10 text-red-500" />
+                      </div>
+                      <h3 className="text-2xl font-bold text-slate-900 mb-3">Barcode Not Found</h3>
+                      <p className="text-slate-600 mb-4">{traceabilityData.message}</p>
+                      <div className="bg-slate-100 rounded-lg p-4 mb-6">
+                        <p className="text-xs text-slate-500 mb-1">Barcode searched:</p>
+                        <p className="font-mono font-bold text-slate-900">{selectedBarcodeForTrace?.barcode_value}</p>
+                      </div>
+                      <div className="text-left bg-blue-50 rounded-lg p-4 border border-blue-200">
+                        <p className="text-sm font-semibold text-blue-900 mb-2">💡 Possible Reasons:</p>
+                        <ul className="text-xs text-blue-800 space-y-1.5 ml-4">
+                          <li className="list-disc">This is an old test barcode that was deleted</li>
+                          <li className="list-disc">The barcode hasn't been generated yet</li>
+                          <li className="list-disc">There was a typo in the barcode value</li>
+                        </ul>
+                        <div className="mt-3 pt-3 border-t border-blue-200">
+                          <p className="text-xs font-semibold text-blue-900">✅ Solution:</p>
+                          <p className="text-xs text-blue-800 mt-1">Generate a new barcode and view its traceability - it will work perfectly!</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : traceabilityData ? (
+                  <div className="space-y-6">
+                    {/* Product Info */}
+                    {traceabilityData.products && (
+                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-200">
+                        <div className="flex items-center gap-3 mb-4">
+                          <Package className="w-6 h-6 text-blue-600" />
+                          <h3 className="text-lg font-bold text-slate-900">Product Information</h3>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-xs text-slate-600 mb-1">Brand</p>
+                            <p className="font-semibold text-slate-900">
+                              {traceabilityData.products?.brand || 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-600 mb-1">Model</p>
+                            <p className="font-semibold text-slate-900">
+                              {traceabilityData.products?.model || 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-600 mb-1">SKU</p>
+                            <p className="font-mono font-semibold text-slate-900 text-sm">
+                              {traceabilityData.products?.sku || 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-600 mb-1">Dimensions</p>
+                            <p className="font-semibold text-slate-900">
+                              {traceabilityData.products?.dimensions || 'N/A'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Batch Info */}
+                    {traceabilityData.batches && (
+                      <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-200">
+                        <div className="flex items-center gap-3 mb-4">
+                          <Boxes className="w-6 h-6 text-amber-600" />
+                          <h3 className="text-lg font-bold text-slate-900">Batch Information</h3>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-xs text-slate-600 mb-1">Batch Number</p>
+                            <p className="font-mono font-semibold text-slate-900">
+                              {traceabilityData.batches?.batch_number || 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-600 mb-1">Production Date</p>
+                            <p className="font-semibold text-slate-900">
+                              {traceabilityData.batches?.batch_month || 'N/A'}/{traceabilityData.batches?.batch_year || 'N/A'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Shipment Info */}
+                    {traceabilityData.batches?.shipments && (
+                      <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-200">
+                        <div className="flex items-center gap-3 mb-4">
+                          <Truck className="w-6 h-6 text-purple-600" />
+                          <h3 className="text-lg font-bold text-slate-900">Shipment Information</h3>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-xs text-slate-600 mb-1">Shipment Number</p>
+                            <p className="font-mono font-semibold text-slate-900">
+                              {traceabilityData.batches.shipments?.shipment_number || 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-600 mb-1">Container</p>
+                            <p className="font-semibold text-slate-900">
+                              {traceabilityData.batches.shipments?.container_number || 'N/A'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Inventory Unit & Warehouse */}
+                    {traceabilityData.inventory_units && (
+                      <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-200">
+                        <div className="flex items-center gap-3 mb-4">
+                          <MapPin className="w-6 h-6 text-green-600" />
+                          <h3 className="text-lg font-bold text-slate-900">Warehouse Location</h3>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-xs text-slate-600 mb-1">Warehouse</p>
+                            <p className="font-semibold text-slate-900">
+                              {traceabilityData.inventory_units.warehouses?.name || 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-600 mb-1">Location</p>
+                            <p className="font-semibold text-slate-900">
+                              {traceabilityData.inventory_units.level && `${traceabilityData.inventory_units.level} - `}
+                              {traceabilityData.inventory_units.rack && `Rack ${traceabilityData.inventory_units.rack}`}
+                              {!traceabilityData.inventory_units.level && !traceabilityData.inventory_units.rack && 'Not assigned'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-600 mb-1">Unit Code</p>
+                            <p className="font-mono font-semibold text-slate-900 text-sm">
+                              {traceabilityData.inventory_units.inventory_unit_code || 'N/A'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-600 mb-1">Status</p>
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                              traceabilityData.inventory_units.status === 'AVAILABLE' 
+                                ? 'bg-green-100 text-green-700' 
+                                : 'bg-slate-100 text-slate-600'
+                            }`}>
+                              {traceabilityData.inventory_units.status || 'N/A'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Barcode Status */}
+                    <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-6 border border-slate-200">
+                      <div className="flex items-center gap-3 mb-4">
+                        <Barcode className="w-6 h-6 text-slate-600" />
+                        <h3 className="text-lg font-bold text-slate-900">Barcode Status</h3>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-xs text-slate-600 mb-1">Status</p>
+                          <span className={`px-3 py-1 rounded-full text-sm font-bold ${
+                            traceabilityData.status === 'active' 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-slate-100 text-slate-600'
+                          }`}>
+                            {traceabilityData.status?.toUpperCase() || 'UNKNOWN'}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-xs text-slate-600 mb-1">Generated</p>
+                          <p className="font-semibold text-slate-900 text-sm">
+                            {traceabilityData.created_at 
+                              ? new Date(traceabilityData.created_at).toLocaleDateString()
+                              : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* QR Code */}
+                    {traceabilityData.qr_code_data && (
+                      <div className="bg-white rounded-2xl p-6 border-2 border-slate-200 text-center">
+                        <h3 className="text-lg font-bold text-slate-900 mb-4">QR Code</h3>
+                        <img
+                          src={traceabilityData.qr_code_data}
+                          alt="QR Code"
+                          className="w-48 h-48 mx-auto border-2 border-slate-300 rounded-lg"
+                        />
+                        <p className="text-xs text-slate-500 mt-3">Scan to trace this product</p>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+
+              {/* Panel Footer */}
+              <div className="border-t border-slate-200 p-4 bg-slate-50">
+                <button
+                  onClick={() => setShowTraceabilityPanel(false)}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold transition-all shadow-lg"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+        </>
+      )}
     </div>
   );
 }

@@ -66,7 +66,10 @@ export async function createBarcodes({
   productId,
   batchId,
   shipmentId,
-  quantity
+  quantity,
+  warehouseId,
+  rackId,
+  rackLocationId
 }) {
   // ---------------------------------------------------------
   // 1. VALIDATION
@@ -121,7 +124,47 @@ export async function createBarcodes({
   console.log(`✅ RPC completed: ${data.quantity} barcodes created`);
 
   // ---------------------------------------------------------
-  // 3. GENERATE QR CODES FOR EACH BARCODE
+  // 3. ASSIGN WAREHOUSE LOCATIONS (if provided)
+  // ---------------------------------------------------------
+  if (rackLocationId) {
+    console.log(`📍 Assigning warehouse location to ${data.barcodes.length} inventory units...`);
+    
+    try {
+      // Get rack location details
+      const { data: rackLocation } = await supabaseAdmin
+        .from('rack_locations')
+        .select('*, rack:rack_configurations(rack_code, warehouse_id)')
+        .eq('id', rackLocationId)
+        .single();
+
+      if (rackLocation) {
+        // Get all inventory unit IDs from the barcodes
+        const inventoryUnitIds = data.barcodes.map(b => b.inventory_unit_id);
+
+        // Update all inventory units with location
+        await supabaseAdmin
+          .from('inventory_units')
+          .update({
+            rack_location_id: rackLocationId,
+            rack_code: rackLocation.rack.rack_code,
+            shelf_number: rackLocation.shelf_number,
+            section_number: rackLocation.section_number,
+            subsection_number: rackLocation.subsection_number,
+            position_code: rackLocation.position_code,
+            assigned_at: new Date().toISOString()
+          })
+          .in('id', inventoryUnitIds);
+
+        console.log(`✅ Warehouse locations assigned successfully`);
+      }
+    } catch (locError) {
+      console.error('⚠️ Warning: Failed to assign warehouse locations:', locError);
+      // Don't fail the entire operation if location assignment fails
+    }
+  }
+
+  // ---------------------------------------------------------
+  // 4. GENERATE QR CODES FOR EACH BARCODE
   // ---------------------------------------------------------
   // QR generation happens in Node.js (not in PostgreSQL)
   // This is cleaner separation of concerns
@@ -159,7 +202,7 @@ export async function createBarcodes({
   console.log(`✅ QR codes generated successfully`);
 
   // ---------------------------------------------------------
-  // 4. RETURN COMPLETE RESULT
+  // 5. RETURN COMPLETE RESULT
   // ---------------------------------------------------------
   return {
     success: true,
@@ -203,49 +246,8 @@ export async function getBarcodes({ limit }) {
   const safeLimit = useLimit ? Number(limit) : 10000; // High default for "all"
 
   try {
-    // Try using RPC function first
-    const { data: rpcData, error: rpcError } = await supabaseAdmin
-      .rpc('get_barcodes_with_traceability', { p_limit: safeLimit });
-
-    if (!rpcError && rpcData && rpcData.length > 0) {
-      // Transform RPC result to expected format
-      return rpcData.map(row => ({
-        id: row.barcode_id,
-        barcode_value: row.barcode_value,
-        barcode_type: row.barcode_type,
-        traceability_url: row.traceability_url,
-        qr_code_data: row.qr_code_data,
-        status: row.status,
-        created_at: row.created_at,
-        products: row.product_id ? {
-          id: row.product_id,
-          sku: row.product_sku,
-          brand: row.product_brand,
-          model: row.product_model
-        } : null,
-        batches: row.batch_id ? {
-          id: row.batch_id,
-          batch_number: row.batch_number,
-          shipments: row.shipment_number ? {
-            container_number: row.container_number,
-            bl_number: row.bl_number,
-            shipment_number: row.shipment_number,
-            suppliers: row.supplier_name ? {
-              name: row.supplier_name
-            } : null
-          } : null
-        } : null,
-        inventory_units: row.inventory_unit_id ? {
-          id: row.inventory_unit_id,
-          inventory_unit_code: row.inventory_unit_code,
-          status: row.unit_status
-        } : null
-      }));
-    }
-
-    // Fallback: Query table directly
-    console.warn('⚠️ RPC not available, using direct table query');
-    console.log('Attempting to query barcodes table...');
+    // Use direct query with nested relationships (PostgREST handles this better than RPC)
+    console.log('📦 Fetching barcodes with nested data...');
     
     const query = supabaseAdmin
       .from('barcodes')
@@ -259,7 +261,33 @@ export async function getBarcodes({ limit }) {
         created_at,
         product_id,
         batch_id,
-        inventory_unit_id
+        inventory_unit_id,
+        products!barcodes_product_id_fkey (
+          id,
+          sku,
+          brand,
+          model,
+          dimensions
+        ),
+        batches!barcodes_batch_id_fkey (
+          id,
+          batch_number,
+          shipments!batches_shipment_id_fkey (
+            id,
+            shipment_number,
+            container_number,
+            bl_number,
+            suppliers:supplier_id (
+              id,
+              name
+            )
+          )
+        ),
+        inventory_units!barcodes_inventory_unit_id_fkey (
+          id,
+          inventory_unit_code,
+          status
+        )
       `)
       .order('created_at', { ascending: false });
     
@@ -283,22 +311,15 @@ export async function getBarcodes({ limit }) {
     }
 
     if (!tableData || tableData.length === 0) {
+      console.log('📊 No barcodes found');
       return [];
     }
 
-    // Return simplified format (without joins)
-    return tableData.map(row => ({
-      id: row.id,
-      barcode_value: row.barcode_value,
-      barcode_type: row.barcode_type,
-      traceability_url: row.traceability_url,
-      qr_code_data: row.qr_code_data,
-      status: row.status,
-      created_at: row.created_at,
-      product_id: row.product_id,
-      batch_id: row.batch_id,
-      inventory_unit_id: row.inventory_unit_id
-    }));
+    console.log(`✅ Loaded ${tableData.length} barcodes with nested data`);
+    console.log('Sample barcode:', JSON.stringify(tableData[0], null, 2));
+    
+    // PostgREST automatically returns nested data, just return as-is
+    return tableData;
   } catch (err) {
     console.error('❌ getBarcodes error:', err.message);
     // Return empty array instead of crashing
@@ -333,7 +354,6 @@ export async function getTraceability(barcodeValue) {
         sku,
         brand,
         model,
-        product_name,
         dimensions,
         category
       ),
@@ -345,7 +365,7 @@ export async function getTraceability(barcodeValue) {
         manufactured_date,
         expiry_date,
         status,
-        shipments:shipment_id (
+        shipments!batches_shipment_id_fkey (
           id,
           shipment_number,
           container_number,
@@ -358,14 +378,13 @@ export async function getTraceability(barcodeValue) {
           suppliers:supplier_id (
             id,
             name,
-            supplier_code,
             contact_person,
             email,
             phone
           )
         )
       ),
-      inventory_units (
+      inventory_units!barcodes_inventory_unit_id_fkey (
         id,
         inventory_unit_code,
         quantity,
@@ -388,9 +407,17 @@ export async function getTraceability(barcodeValue) {
     .eq('barcode_value', barcodeValue)
     .single();
 
-  if (error || !data) {
+  if (error) {
+    console.error('❌ Traceability query error:', error);
     throw new Error(`Barcode not found: ${barcodeValue}`);
   }
+
+  if (!data) {
+    console.error('❌ No data returned for barcode:', barcodeValue);
+    throw new Error(`Barcode not found: ${barcodeValue}`);
+  }
+
+  console.log('✅ Traceability data loaded:', JSON.stringify(data, null, 2));
 
   return data;
 }

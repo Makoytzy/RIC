@@ -1,0 +1,11 @@
+ALTER TABLE barcodes DROP CONSTRAINT IF EXISTS fk_barcodes_batch CASCADE;
+ALTER TABLE barcodes DROP CONSTRAINT IF EXISTS fk_barcodes_product CASCADE;
+ALTER TABLE barcodes DROP CONSTRAINT IF EXISTS fk_barcodes_inventory_unit CASCADE;
+ALTER TABLE batches DROP CONSTRAINT IF EXISTS fk_batches_shipment CASCADE;
+ALTER TABLE batches DROP CONSTRAINT IF EXISTS fk_batches_product CASCADE;
+ALTER TABLE shipments DROP CONSTRAINT IF EXISTS fk_shipments_supplier CASCADE;
+ALTER TABLE inventory_units DROP CONSTRAINT IF EXISTS fk_inventory_units_product CASCADE;
+ALTER TABLE inventory_units DROP CONSTRAINT IF EXISTS fk_inventory_units_batch CASCADE;
+ALTER TABLE inventory_units DROP CONSTRAINT IF EXISTS fk_inventory_units_warehouse CASCADE;
+NOTIFY pgrst, 'reload schema';
+SELECT '✅ All duplicate foreign keys removed!' as status;

@@ -20,7 +20,7 @@ export async function getBatches(req, res) {
       .from('batches')
       .select(`
         *,
-        products!fk_batches_product (
+        products:product_id (
           id,
           sku,
           brand,
@@ -28,12 +28,12 @@ export async function getBatches(req, res) {
           dimensions,
           category
         ),
-        shipments!fk_batches_shipment (
+        shipments:shipment_id (
           id,
           shipment_number,
           container_number,
           bl_number,
-          suppliers!fk_shipments_supplier (
+          suppliers:supplier_id (
             id,
             name
           )
@@ -90,7 +90,7 @@ export async function getBatchById(req, res) {
       .from('batches')
       .select(`
         *,
-        products!fk_batches_product (
+        products:product_id (
           id,
           sku,
           brand,
@@ -100,14 +100,14 @@ export async function getBatchById(req, res) {
           unit_cost,
           retail_price
         ),
-        shipments!fk_batches_shipment (
+        shipments:shipment_id (
           id,
           shipment_number,
           container_number,
           bl_number,
           expected_arrival_date,
           received_date,
-          suppliers!fk_shipments_supplier (
+          suppliers:supplier_id (
             id,
             name,
             contact_person,
@@ -233,14 +233,14 @@ export async function createBatch(req, res) {
       })
       .select(`
         *,
-        products!fk_batches_product (
+        products:product_id (
           id,
           sku,
           brand,
           model,
           dimensions
         ),
-        shipments!fk_batches_shipment (
+        shipments:shipment_id (
           id,
           shipment_number,
           container_number
@@ -299,13 +299,13 @@ export async function updateBatch(req, res) {
       .eq('id', id)
       .select(`
         *,
-        products!fk_batches_product (
+        products:product_id (
           id,
           sku,
           brand,
           model
         ),
-        shipments!fk_batches_shipment (
+        shipments:shipment_id (
           id,
           shipment_number
         )
@@ -403,7 +403,7 @@ export async function getBatchesByShipment(req, res) {
       .from('batches')
       .select(`
         *,
-        products!fk_batches_product (
+        products:product_id (
           id,
           sku,
           brand,
