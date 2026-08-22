@@ -242,7 +242,35 @@ export async function deleteBarcodeController(req, res) {
 
     console.log(`🗑️ Deleting barcode: ${id}`);
 
-    // Delete from database
+    // STEP 1: Get barcode with inventory_unit data BEFORE deleting
+    // We need warehouse_id and rack to update rack count
+    const { data: barcodeData, error: fetchError } = await supabaseAdmin
+      .from('barcodes')
+      .select(`
+        id,
+        inventory_unit_id,
+        inventory_units!barcodes_inventory_unit_id_fkey (
+          warehouse_id,
+          rack
+        )
+      `)
+      .eq('id', id)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching barcode for deletion:', fetchError);
+      return res.status(500).json({
+        success: false,
+        error: fetchError.message || 'Failed to fetch barcode'
+      });
+    }
+
+    const warehouseId = barcodeData?.inventory_units?.warehouse_id;
+    const rackCode = barcodeData?.inventory_units?.rack;
+
+    console.log(`📍 Barcode location: Warehouse ${warehouseId}, Rack ${rackCode}`);
+
+    // STEP 2: Delete from database
     const { data, error } = await supabaseAdmin
       .from('barcodes')
       .delete()
@@ -259,6 +287,63 @@ export async function deleteBarcodeController(req, res) {
     }
 
     console.log(`✅ Barcode deleted successfully: ${id}`);
+
+    // STEP 3: Clear warehouse assignment from inventory_unit and update rack count
+    if (warehouseId && rackCode && data.inventory_unit_id) {
+      console.log(`🔄 Clearing warehouse assignment and updating rack count for: ${rackCode}`);
+
+      // Clear warehouse_id and rack from the inventory_unit
+      const { error: clearError } = await supabaseAdmin
+        .from('inventory_units')
+        .update({ 
+          warehouse_id: null,
+          rack: null,
+          assigned_at: null
+        })
+        .eq('id', data.inventory_unit_id);
+
+      if (clearError) {
+        console.error('⚠️ Failed to clear warehouse assignment:', clearError);
+      } else {
+        console.log(`✅ Cleared warehouse assignment from inventory_unit`);
+      }
+
+      // Count remaining BARCODES (not inventory_units) assigned to this rack
+      // This ensures we only count barcodes that still exist
+      const { count, error: countError } = await supabaseAdmin
+        .from('barcodes')
+        .select(`
+          id,
+          inventory_units!barcodes_inventory_unit_id_fkey!inner (
+            warehouse_id,
+            rack
+          )
+        `, { count: 'exact', head: true })
+        .eq('inventory_units.warehouse_id', warehouseId)
+        .eq('inventory_units.rack', rackCode)
+        .eq('status', 'active');
+
+      if (countError) {
+        console.error('⚠️ Failed to count remaining barcodes:', countError);
+      } else {
+        console.log(`📊 Remaining barcodes in rack ${rackCode}: ${count}`);
+
+        // Update rack_configurations.current_count
+        const { error: updateError } = await supabaseAdmin
+          .from('rack_configurations')
+          .update({ current_count: count || 0 })
+          .eq('warehouse_id', warehouseId)
+          .eq('rack_code', rackCode);
+
+        if (updateError) {
+          console.error('⚠️ Failed to update rack count:', updateError);
+        } else {
+          console.log(`✅ Rack count updated: ${rackCode} now has ${count || 0} units`);
+        }
+      }
+    } else {
+      console.log(`ℹ️ Barcode was not assigned to a rack, no update needed`);
+    }
 
     return res.json({
       success: true,

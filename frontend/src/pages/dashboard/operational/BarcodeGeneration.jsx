@@ -365,7 +365,18 @@ export default function BarcodeGeneration() {
         setModalTitle('Success!');
         setModalMessage(`Successfully generated ${data.barcodes.length} barcode${data.barcodes.length > 1 ? 's' : ''} and assigned to warehouse location. They are now ready for printing or export.`);
         setShowSuccessModal(true);
+        
+        // Reset form to initial state for next barcode generation
+        setFormData({
+          batchId: '',
+          productId: '',
+          shipmentId: '',
+          warehouseId: '',
+          rackId: '',
+          rackLocationId: ''
+        });
         setBatchQuantity(1);
+        setRacks([]); // Clear rack list since warehouse was cleared
         
         // Reload all barcodes to ensure we have the latest data
         await loadGeneratedBarcodes();
@@ -1984,114 +1995,112 @@ export default function BarcodeGeneration() {
         </div>
       </div>
 
-      {/* Traceability Slide-Out Panel */}
+      {/* Traceability Modal - Centered & Compact */}
       <AnimatePresence>
         {showTraceabilityPanel && (
-          <>
-            {/* Overlay */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowTraceabilityPanel(false)}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-center justify-center p-4"
+          >
+            {/* Modal - Centered & Compact */}
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowTraceabilityPanel(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
-            />
-            
-            {/* Panel */}
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed right-0 top-0 bottom-0 w-full max-w-2xl bg-white shadow-2xl z-50 overflow-hidden flex flex-col"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col"
             >
-              {/* Panel Header */}
-              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                    <Eye className="w-6 h-6" />
+              {/* Modal Header - Compact */}
+              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
+                    <Eye className="w-5 h-5" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold">Barcode Traceability</h2>
-                    <p className="text-indigo-100 text-sm">
+                    <h2 className="text-xl font-bold">Barcode Traceability</h2>
+                    <p className="text-indigo-100 text-xs">
                       {selectedBarcodeForTrace?.barcode_value || 'Loading...'}
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowTraceabilityPanel(false)}
-                  className="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-all"
+                  className="p-1.5 rounded-lg bg-white/20 hover:bg-white/30 transition-all"
                 >
-                  <X className="w-6 h-6" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* Panel Content */}
-              <div className="flex-1 overflow-y-auto p-6">
+              {/* Modal Content - Compact */}
+              <div className="flex-1 overflow-y-auto p-4">
                 {loadingTrace ? (
-                  <div className="flex items-center justify-center h-full">
+                  <div className="flex items-center justify-center h-full min-h-[300px]">
                     <div className="text-center">
-                      <RefreshCw className="w-12 h-12 animate-spin text-indigo-600 mx-auto mb-4" />
-                      <p className="text-slate-600">Loading traceability data...</p>
+                      <RefreshCw className="w-10 h-10 animate-spin text-indigo-600 mx-auto mb-3" />
+                      <p className="text-slate-600 text-sm">Loading traceability data...</p>
                     </div>
                   </div>
                 ) : traceabilityData?.error ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center max-w-md px-6">
-                      <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <AlertTriangle className="w-10 h-10 text-red-500" />
+                  <div className="flex items-center justify-center h-full min-h-[300px]">
+                    <div className="text-center max-w-md px-4">
+                      <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <AlertTriangle className="w-8 h-8 text-red-500" />
                       </div>
-                      <h3 className="text-2xl font-bold text-slate-900 mb-3">Barcode Not Found</h3>
-                      <p className="text-slate-600 mb-4">{traceabilityData.message}</p>
-                      <div className="bg-slate-100 rounded-lg p-4 mb-6">
+                      <h3 className="text-xl font-bold text-slate-900 mb-2">Barcode Not Found</h3>
+                      <p className="text-slate-600 text-sm mb-3">{traceabilityData.message}</p>
+                      <div className="bg-slate-100 rounded-lg p-3 mb-4">
                         <p className="text-xs text-slate-500 mb-1">Barcode searched:</p>
-                        <p className="font-mono font-bold text-slate-900">{selectedBarcodeForTrace?.barcode_value}</p>
+                        <p className="font-mono font-bold text-slate-900 text-sm">{selectedBarcodeForTrace?.barcode_value}</p>
                       </div>
-                      <div className="text-left bg-blue-50 rounded-lg p-4 border border-blue-200">
-                        <p className="text-sm font-semibold text-blue-900 mb-2">💡 Possible Reasons:</p>
-                        <ul className="text-xs text-blue-800 space-y-1.5 ml-4">
+                      <div className="text-left bg-blue-50 rounded-lg p-3 border border-blue-200">
+                        <p className="text-xs font-semibold text-blue-900 mb-1.5">💡 Possible Reasons:</p>
+                        <ul className="text-xs text-blue-800 space-y-1 ml-4">
                           <li className="list-disc">This is an old test barcode that was deleted</li>
                           <li className="list-disc">The barcode hasn't been generated yet</li>
                           <li className="list-disc">There was a typo in the barcode value</li>
                         </ul>
-                        <div className="mt-3 pt-3 border-t border-blue-200">
+                        <div className="mt-2 pt-2 border-t border-blue-200">
                           <p className="text-xs font-semibold text-blue-900">✅ Solution:</p>
-                          <p className="text-xs text-blue-800 mt-1">Generate a new barcode and view its traceability - it will work perfectly!</p>
+                          <p className="text-xs text-blue-800 mt-0.5">Generate a new barcode and view its traceability!</p>
                         </div>
                       </div>
                     </div>
                   </div>
                 ) : traceabilityData ? (
-                  <div className="space-y-6">
-                    {/* Product Info */}
+                  <div className="space-y-4">
+                    {/* Product Info - Compact */}
                     {traceabilityData.products && (
-                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-200">
-                        <div className="flex items-center gap-3 mb-4">
-                          <Package className="w-6 h-6 text-blue-600" />
-                          <h3 className="text-lg font-bold text-slate-900">Product Information</h3>
+                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Package className="w-5 h-5 text-blue-600" />
+                          <h3 className="text-base font-bold text-slate-900">Product Information</h3>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <p className="text-xs text-slate-600 mb-1">Brand</p>
-                            <p className="font-semibold text-slate-900">
+                            <p className="text-xs text-slate-600 mb-0.5">Brand</p>
+                            <p className="font-semibold text-slate-900 text-sm">
                               {traceabilityData.products?.brand || 'N/A'}
                             </p>
                           </div>
                           <div>
-                            <p className="text-xs text-slate-600 mb-1">Model</p>
-                            <p className="font-semibold text-slate-900">
+                            <p className="text-xs text-slate-600 mb-0.5">Model</p>
+                            <p className="font-semibold text-slate-900 text-sm">
                               {traceabilityData.products?.model || 'N/A'}
                             </p>
                           </div>
                           <div>
-                            <p className="text-xs text-slate-600 mb-1">SKU</p>
-                            <p className="font-mono font-semibold text-slate-900 text-sm">
+                            <p className="text-xs text-slate-600 mb-0.5">SKU</p>
+                            <p className="font-mono font-semibold text-slate-900 text-xs">
                               {traceabilityData.products?.sku || 'N/A'}
                             </p>
                           </div>
                           <div>
-                            <p className="text-xs text-slate-600 mb-1">Dimensions</p>
-                            <p className="font-semibold text-slate-900">
+                            <p className="text-xs text-slate-600 mb-0.5">Dimensions</p>
+                            <p className="font-semibold text-slate-900 text-sm">
                               {traceabilityData.products?.dimensions || 'N/A'}
                             </p>
                           </div>
@@ -2099,23 +2108,23 @@ export default function BarcodeGeneration() {
                       </div>
                     )}
 
-                    {/* Batch Info */}
+                    {/* Batch Info - Compact */}
                     {traceabilityData.batches && (
-                      <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-200">
-                        <div className="flex items-center gap-3 mb-4">
-                          <Boxes className="w-6 h-6 text-amber-600" />
-                          <h3 className="text-lg font-bold text-slate-900">Batch Information</h3>
+                      <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-4 border border-amber-200">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Boxes className="w-5 h-5 text-amber-600" />
+                          <h3 className="text-base font-bold text-slate-900">Batch Information</h3>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <p className="text-xs text-slate-600 mb-1">Batch Number</p>
-                            <p className="font-mono font-semibold text-slate-900">
+                            <p className="text-xs text-slate-600 mb-0.5">Batch Number</p>
+                            <p className="font-mono font-semibold text-slate-900 text-sm">
                               {traceabilityData.batches?.batch_number || 'N/A'}
                             </p>
                           </div>
                           <div>
-                            <p className="text-xs text-slate-600 mb-1">Production Date</p>
-                            <p className="font-semibold text-slate-900">
+                            <p className="text-xs text-slate-600 mb-0.5">Production Date</p>
+                            <p className="font-semibold text-slate-900 text-sm">
                               {traceabilityData.batches?.batch_month || 'N/A'}/{traceabilityData.batches?.batch_year || 'N/A'}
                             </p>
                           </div>
@@ -2123,23 +2132,23 @@ export default function BarcodeGeneration() {
                       </div>
                     )}
 
-                    {/* Shipment Info */}
+                    {/* Shipment Info - Compact */}
                     {traceabilityData.batches?.shipments && (
-                      <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-200">
-                        <div className="flex items-center gap-3 mb-4">
-                          <Truck className="w-6 h-6 text-purple-600" />
-                          <h3 className="text-lg font-bold text-slate-900">Shipment Information</h3>
+                      <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-200">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Truck className="w-5 h-5 text-purple-600" />
+                          <h3 className="text-base font-bold text-slate-900">Shipment Information</h3>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <p className="text-xs text-slate-600 mb-1">Shipment Number</p>
-                            <p className="font-mono font-semibold text-slate-900">
+                            <p className="text-xs text-slate-600 mb-0.5">Shipment Number</p>
+                            <p className="font-mono font-semibold text-slate-900 text-sm">
                               {traceabilityData.batches.shipments?.shipment_number || 'N/A'}
                             </p>
                           </div>
                           <div>
-                            <p className="text-xs text-slate-600 mb-1">Container</p>
-                            <p className="font-semibold text-slate-900">
+                            <p className="text-xs text-slate-600 mb-0.5">Container</p>
+                            <p className="font-semibold text-slate-900 text-sm">
                               {traceabilityData.batches.shipments?.container_number || 'N/A'}
                             </p>
                           </div>
@@ -2147,58 +2156,130 @@ export default function BarcodeGeneration() {
                       </div>
                     )}
 
-                    {/* Inventory Unit & Warehouse */}
+                    {/* WAREHOUSE LOCATION - COMPACT & PROMINENT */}
                     {traceabilityData.inventory_units && (
-                      <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-200">
-                        <div className="flex items-center gap-3 mb-4">
-                          <MapPin className="w-6 h-6 text-green-600" />
-                          <h3 className="text-lg font-bold text-slate-900">Warehouse Location</h3>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-xs text-slate-600 mb-1">Warehouse</p>
-                            <p className="font-semibold text-slate-900">
-                              {traceabilityData.inventory_units.warehouses?.name || 'N/A'}
-                            </p>
+                      <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 via-green-500 to-teal-500 rounded-xl p-5 border-2 border-emerald-300 shadow-lg">
+                        {/* Decorative background */}
+                        <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+                        
+                        <div className="relative z-10">
+                          {/* Header */}
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow">
+                              <MapPin className="w-6 h-6 text-white" />
+                            </div>
+                            <div>
+                              <h3 className="text-xl font-black text-white">📍 Warehouse Location</h3>
+                              <p className="text-emerald-50 text-xs font-medium">Exact storage position for returns</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-xs text-slate-600 mb-1">Location</p>
-                            <p className="font-semibold text-slate-900">
-                              {traceabilityData.inventory_units.level && `${traceabilityData.inventory_units.level} - `}
-                              {traceabilityData.inventory_units.rack && `Rack ${traceabilityData.inventory_units.rack}`}
-                              {!traceabilityData.inventory_units.level && !traceabilityData.inventory_units.rack && 'Not assigned'}
-                            </p>
+
+                          {/* Main Location Display */}
+                          <div className="bg-white/95 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-white/50">
+                            <div className="text-center">
+                              <p className="text-xs font-semibold text-emerald-700 mb-2 uppercase tracking-wide">Current Location</p>
+                              <div className="space-y-2">
+                                {/* Warehouse Name */}
+                                <div>
+                                  <p className="text-3xl font-black text-emerald-900">
+                                    {traceabilityData.inventory_units.warehouses?.name || 'No Warehouse'}
+                                  </p>
+                                  <p className="text-xs text-slate-500 font-mono mt-1">
+                                    {traceabilityData.inventory_units.warehouses?.code || 'N/A'}
+                                  </p>
+                                </div>
+
+                                {/* Rack Code */}
+                                {traceabilityData.inventory_units.rack_configurations ? (
+                                  <div className="pt-3 border-t border-emerald-200">
+                                    <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                                      <Boxes className="w-4 h-4 text-emerald-600" />
+                                      <p className="text-xs font-bold text-emerald-700 uppercase">Rack Position</p>
+                                    </div>
+                                    <p className="text-3xl font-black text-emerald-800">
+                                      {traceabilityData.inventory_units.rack_configurations.rack_code}
+                                    </p>
+                                    <p className="text-xs text-slate-600 mt-1.5">
+                                      {traceabilityData.inventory_units.rack_configurations.designated_size}
+                                    </p>
+                                    <div className="flex items-center justify-center gap-2 mt-2">
+                                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold">
+                                        {traceabilityData.inventory_units.rack_configurations.size_category || 'General'}
+                                      </span>
+                                      <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">
+                                        Rack #{traceabilityData.inventory_units.rack_configurations.rack_number}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ) : traceabilityData.inventory_units.rack ? (
+                                  <div className="pt-3 border-t border-emerald-200">
+                                    <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                                      <Boxes className="w-4 h-4 text-emerald-600" />
+                                      <p className="text-xs font-bold text-emerald-700 uppercase">Rack Position</p>
+                                    </div>
+                                    <p className="text-3xl font-black text-emerald-800">
+                                      {traceabilityData.inventory_units.rack}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <div className="pt-3 border-t border-amber-200">
+                                    <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                                      <AlertTriangle className="w-4 h-4 text-amber-600" />
+                                      <p className="text-xs font-bold text-amber-700 uppercase">Not Assigned</p>
+                                    </div>
+                                    <p className="text-lg font-bold text-amber-800">
+                                      No rack location assigned yet
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-xs text-slate-600 mb-1">Unit Code</p>
-                            <p className="font-mono font-semibold text-slate-900 text-sm">
-                              {traceabilityData.inventory_units.inventory_unit_code || 'N/A'}
-                            </p>
+
+                          {/* Additional Details - Compact */}
+                          <div className="grid grid-cols-2 gap-2 mt-3">
+                            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2.5 border border-white/30">
+                              <p className="text-xs text-emerald-100 font-semibold mb-0.5 uppercase">Unit Code</p>
+                              <p className="font-mono font-bold text-white text-xs break-all">
+                                {traceabilityData.inventory_units.inventory_unit_code?.slice(0, 18) || 'N/A'}...
+                              </p>
+                            </div>
+                            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2.5 border border-white/30">
+                              <p className="text-xs text-emerald-100 font-semibold mb-0.5 uppercase">Status</p>
+                              <span className={`px-2 py-0.5 rounded-lg text-xs font-bold inline-block ${
+                                traceabilityData.inventory_units.status === 'NEW' 
+                                  ? 'bg-white text-emerald-600' 
+                                  : traceabilityData.inventory_units.status === 'AVAILABLE'
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-slate-100 text-slate-700'
+                              }`}>
+                                {traceabilityData.inventory_units.status || 'N/A'}
+                              </span>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-xs text-slate-600 mb-1">Status</p>
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                              traceabilityData.inventory_units.status === 'AVAILABLE' 
-                                ? 'bg-green-100 text-green-700' 
-                                : 'bg-slate-100 text-slate-600'
-                            }`}>
-                              {traceabilityData.inventory_units.status || 'N/A'}
-                            </span>
-                          </div>
+
+                          {/* Assignment Date */}
+                          {traceabilityData.inventory_units.assigned_at && (
+                            <div className="mt-2 text-center">
+                              <p className="text-xs text-emerald-100">
+                                📅 Assigned: {new Date(traceabilityData.inventory_units.assigned_at).toLocaleString()}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
 
-                    {/* Barcode Status */}
-                    <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-6 border border-slate-200">
-                      <div className="flex items-center gap-3 mb-4">
-                        <Barcode className="w-6 h-6 text-slate-600" />
-                        <h3 className="text-lg font-bold text-slate-900">Barcode Status</h3>
+                    {/* Barcode Status - Compact */}
+                    <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Barcode className="w-5 h-5 text-slate-600" />
+                        <h3 className="text-base font-bold text-slate-900">Barcode Status</h3>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <p className="text-xs text-slate-600 mb-1">Status</p>
-                          <span className={`px-3 py-1 rounded-full text-sm font-bold ${
+                          <p className="text-xs text-slate-600 mb-0.5">Status</p>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
                             traceabilityData.status === 'active' 
                               ? 'bg-green-100 text-green-700' 
                               : 'bg-slate-100 text-slate-600'
@@ -2207,8 +2288,8 @@ export default function BarcodeGeneration() {
                           </span>
                         </div>
                         <div>
-                          <p className="text-xs text-slate-600 mb-1">Generated</p>
-                          <p className="font-semibold text-slate-900 text-sm">
+                          <p className="text-xs text-slate-600 mb-0.5">Generated</p>
+                          <p className="font-semibold text-slate-900 text-xs">
                             {traceabilityData.created_at 
                               ? new Date(traceabilityData.created_at).toLocaleDateString()
                               : 'N/A'}
@@ -2217,33 +2298,33 @@ export default function BarcodeGeneration() {
                       </div>
                     </div>
 
-                    {/* QR Code */}
+                    {/* QR Code - Compact */}
                     {traceabilityData.qr_code_data && (
-                      <div className="bg-white rounded-2xl p-6 border-2 border-slate-200 text-center">
-                        <h3 className="text-lg font-bold text-slate-900 mb-4">QR Code</h3>
+                      <div className="bg-white rounded-xl p-4 border border-slate-200 text-center">
+                        <h3 className="text-base font-bold text-slate-900 mb-3">QR Code</h3>
                         <img
                           src={traceabilityData.qr_code_data}
                           alt="QR Code"
-                          className="w-48 h-48 mx-auto border-2 border-slate-300 rounded-lg"
+                          className="w-32 h-32 mx-auto border border-slate-300 rounded-lg"
                         />
-                        <p className="text-xs text-slate-500 mt-3">Scan to trace this product</p>
+                        <p className="text-xs text-slate-500 mt-2">Scan to trace this product</p>
                       </div>
                     )}
                   </div>
                 ) : null}
               </div>
 
-              {/* Panel Footer */}
-              <div className="border-t border-slate-200 p-4 bg-slate-50">
+              {/* Modal Footer - Compact */}
+              <div className="border-t border-slate-200 p-3 bg-slate-50">
                 <button
                   onClick={() => setShowTraceabilityPanel(false)}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold transition-all shadow-lg"
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold transition-all shadow-md text-sm"
                 >
                   Close
                 </button>
               </div>
             </motion.div>
-          </>
+          </motion.div>
         )}
       </AnimatePresence>
         </>

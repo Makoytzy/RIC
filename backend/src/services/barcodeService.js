@@ -126,41 +126,67 @@ export async function createBarcodes({
   // ---------------------------------------------------------
   // 3. ASSIGN WAREHOUSE LOCATIONS (if provided)
   // ---------------------------------------------------------
-  if (rackLocationId) {
-    console.log(`📍 Assigning warehouse location to ${data.barcodes.length} inventory units...`);
+  if (warehouseId && rackId) {
+    console.log(`📍 Assigning warehouse and rack to ${data.barcodes.length} inventory units...`);
     
     try {
-      // Get rack location details
-      const { data: rackLocation } = await supabaseAdmin
-        .from('rack_locations')
-        .select('*, rack:rack_configurations(rack_code, warehouse_id)')
-        .eq('id', rackLocationId)
+      // Get rack details
+      const { data: rack, error: rackError } = await supabaseAdmin
+        .from('rack_configurations')
+        .select('id, rack_code, rack_number, warehouse_id')
+        .eq('id', rackId)
         .single();
 
-      if (rackLocation) {
+      if (rackError) {
+        console.error('⚠️ Failed to fetch rack:', rackError);
+      } else if (rack) {
         // Get all inventory unit IDs from the barcodes
         const inventoryUnitIds = data.barcodes.map(b => b.inventory_unit_id);
 
-        // Update all inventory units with location
-        await supabaseAdmin
+        // Update all inventory units with warehouse and rack (store rack_code in 'rack' column)
+        const { error: updateError } = await supabaseAdmin
           .from('inventory_units')
           .update({
-            rack_location_id: rackLocationId,
-            rack_code: rackLocation.rack.rack_code,
-            shelf_number: rackLocation.shelf_number,
-            section_number: rackLocation.section_number,
-            subsection_number: rackLocation.subsection_number,
-            position_code: rackLocation.position_code,
+            warehouse_id: warehouseId,
+            rack: rack.rack_code,  // Store rack code in existing 'rack' column
             assigned_at: new Date().toISOString()
           })
           .in('id', inventoryUnitIds);
 
-        console.log(`✅ Warehouse locations assigned successfully`);
+        if (updateError) {
+          console.error('⚠️ Failed to update inventory units:', updateError);
+        } else {
+          console.log(`✅ Warehouse and rack assigned: ${rack.rack_code} (${inventoryUnitIds.length} units)`);
+          
+          // Update rack's current_count by counting actual inventory units
+          try {
+            // Count how many inventory units are currently assigned to this rack
+            const { count, error: countError } = await supabaseAdmin
+              .from('inventory_units')
+              .select('*', { count: 'exact', head: true })
+              .eq('warehouse_id', warehouseId)
+              .eq('rack', rack.rack_code);
+            
+            if (!countError && count !== null) {
+              // Update the rack with the actual count
+              await supabaseAdmin
+                .from('rack_configurations')
+                .update({ current_count: count })
+                .eq('id', rackId);
+              
+              console.log(`✅ Rack count updated to ${count} units`);
+            }
+          } catch (countError) {
+            console.warn('⚠️ Could not update rack count:', countError);
+          }
+        }
       }
     } catch (locError) {
       console.error('⚠️ Warning: Failed to assign warehouse locations:', locError);
       // Don't fail the entire operation if location assignment fails
     }
+  } else {
+    console.log('📦 No warehouse/rack provided - units will be unassigned');
   }
 
   // ---------------------------------------------------------
@@ -390,10 +416,8 @@ export async function getTraceability(barcodeValue) {
         quantity,
         status,
         warehouse_id,
-        level,
         rack,
-        shelf,
-        section,
+        assigned_at,
         received_at,
         last_scanned_at,
         warehouses:warehouse_id (
@@ -415,6 +439,24 @@ export async function getTraceability(barcodeValue) {
   if (!data) {
     console.error('❌ No data returned for barcode:', barcodeValue);
     throw new Error(`Barcode not found: ${barcodeValue}`);
+  }
+
+  // Fetch rack configuration separately if rack column has data
+  if (data.inventory_units?.rack) {
+    try {
+      const { data: rackData, error: rackError } = await supabaseAdmin
+        .from('rack_configurations')
+        .select('id, rack_code, rack_number, designated_size, size_category')
+        .eq('rack_code', data.inventory_units.rack)
+        .single();
+
+      if (!rackError && rackData) {
+        data.inventory_units.rack_configurations = rackData;
+        console.log('✅ Rack configuration loaded:', rackData.rack_code);
+      }
+    } catch (rackErr) {
+      console.warn('⚠️ Could not load rack configuration:', rackErr);
+    }
   }
 
   console.log('✅ Traceability data loaded:', JSON.stringify(data, null, 2));
